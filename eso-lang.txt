@@ -1,0 +1,5 @@
+WhiteSpace
+Intercal
+BF
+Malbolge
+DCPU-16
