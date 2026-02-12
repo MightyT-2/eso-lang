@@ -1,5 +1,7 @@
-WhiteSpace
-Intercal
+WhiteSpace - interpreted
+Intercal   - 
 BF
 Malbolge
 DCPU-16
+Piet
+Chef
