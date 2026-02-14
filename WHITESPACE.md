@@ -82,8 +82,10 @@ The *read* instructions take the heap address in which to store the result from 
 
 Here is an annotated example of a program which counts from 1 to 10, outputting the current value as it goes.
 
+|                                                                           |                                                                        |
+|---------------------------------------------------------------------------|------------------------------------------------------------------------|
 | [Space][Space][Space][Tab][LF]                                            | Put a 1 on the stack                                                   |
-| [LF][Space][Space][Space][Tab][Space][Space] [Space][Space][Tab][Tab][LF] | Set a Label at this point                                              |
+| [LF][Space][Space][Space][Tab][Space][Space][Space][Space][Tab][Tab][LF]  | Set a Label at this point                                              |
 | [Space][LF][Space]                                                        | Duplicate the top stack item                                           |
 | [Tab][LF][Space][Tab]                                                     | Output the current value                                               |
 | [Space][Space][Space][Tab][Space][Tab][Space][LF]                         | Put 10 (newline) on the stack...                                       |
@@ -93,8 +95,8 @@ Here is an annotated example of a program which counts from 1 to 10, outputting 
 | [Space][LF][Space]                                                        | Duplicate that value so we can test it                                 |
 | [Space][Space][Space][Tab][Space][Tab][Tab][LF]                           | Push 11 onto the stack                                                 |
 | [Tab][Space][Space][Tab]                                                  | Subtraction. So if we've reached the end, we have a zero on the stack. |
-| [LF][Tab][Space][Space][Tab][Space][Space] [Space][Tab][Space][Tab][LF]   | If we have a zero, jump to the end                                     |
-| [LF][Space][LF][Space][Tab][Space] [Space][Space][Space][Tab][Tab][LF]    | Jump to the start                                                      |
-| [LF][Space][Space][Space][Tab][Space] [Space][Space][Tab][Space][Tab][LF] | Set the end label                                                      |
+| [LF][Tab][Space][Space][Tab][Space][Space][Space][Tab][Space][Tab][LF]    | If we have a zero, jump to the end                                     |
+| [LF][Space][LF][Space][Tab][Space][Space][Space][Space][Tab][Tab][LF]     | Jump to the start                                                      |
+| [LF][Space][Space][Space][Tab][Space][Space][Space][Tab][Space][Tab][LF]  | Set the end label                                                      |
 | [Space][LF][LF]                                                           | Discard our accumulator, to be tidy                                    |
 | [LF][LF][LF]                                                              | Finish                                                                 |

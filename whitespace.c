@@ -19,73 +19,96 @@
 #define MAGENTA_BACK "\x1b[45m"
 #define CYAN_BACK    "\x1b[46m"
 
-int main(int argc, char* argv[])
+int ws_shell()
 {
-    FILE *code_file;
+    printf("A Whitespace Shell\n");
+}
+
+int ws_interpret(char *file_location)
+{
+    printf("Run a program from a file\n");
+}
+
+int ws_convert(char *file_name)
+{
+    FILE *source_file;
+    char next_char;
+    
+    // printf("Convert to character notation [s - space, t - tab, l - line feed]\n");
+    source_file = fopen(file_name, "r");
+    while ((next_char = fgetc(source_file)) != EOF)
+    {
+        if (next_char == (int) ' ')
+        {
+            printf(RED_FORE "s" NOCOLOR);
+        }
+        else if (next_char == (int) '\t')
+        {
+            printf(BLUE_FORE "t" NOCOLOR);
+        }
+        else if (next_char == (int) '\n')
+        {
+            printf(GREEN_FORE "l" NOCOLOR);
+        }
+    }
+    printf("\n");
+}
+
+int ws_echo(char* file_name)
+{
+    FILE *source_file;
     char next_char;
     int  char_counter = 0;
+
+    source_file = fopen(file_name, "r");
+    while ((next_char = fgetc(source_file)) != EOF)
+    {
+        if (next_char == (int) ' ')
+        {
+            printf(RED_BACK " " NOCOLOR);
+            char_counter++;
+        }
+        else if (next_char == (int) '\t')
+        {
+            do
+            {
+                printf(BLUE_BACK " " NOCOLOR);
+                char_counter++;
+            } while (char_counter % 8 != 0);
+        }
+        else if (next_char == (int) '\n')
+        {
+            printf(GREEN_BACK " " NOCOLOR "\n");
+            char_counter = 0;
+        }
+    }
+}
+
+int main(int argc, char *argv[])
+{
 
     /* Shell */
     if (argc == 1)
     {
-        printf("A Whitespace Shell\n");
-
+        ws_shell();
     }
 
     /* Interpreter */
     else if (strcmp(argv[1], "run") == 0)
     {
-        printf("Run a program from a file\n");
+        ws_interpret(argv[2]);
     }
     
     /* Converter */
     else if (strcmp(argv[1], "cws") == 0 && argc > 2)
     {
-        // printf("Convert to character notation [s - space, t - tab, l - line feed]\n");
-        code_file = fopen(argv[2], "r");
-        while ((next_char = fgetc(code_file)) != EOF)
-        {
-            if (next_char == (int) ' ')
-            {
-                printf(RED_FORE "s" NOCOLOR);
-            }
-            else if (next_char == (int) '\t')
-            {
-                printf(BLUE_FORE "t" NOCOLOR);
-            }
-            else if (next_char == (int) '\n')
-            {
-                printf(GREEN_FORE "l" NOCOLOR);
-            }
-        }
-        printf("\n");
+        ws_convert(argv[2]);
     }
 
     /* Echo the Whitespace program */
     else if (strcmp(argv[1], "echo") == 0 && argc > 2)
     {
-        code_file = fopen(argv[2], "r");
-        while ((next_char = fgetc(code_file)) != EOF)
-        {
-            if (next_char == (int) ' ')
-            {
-                printf(RED_BACK " " NOCOLOR);
-                char_counter++;
-            }
-            else if (next_char == (int) '\t')
-            {
-                do
-                {
-                    printf(BLUE_BACK " " NOCOLOR);
-                    char_counter++;
-                } while (char_counter % 8 != 0);
-            }
-            else if (next_char == (int) '\n')
-            {
-                printf(GREEN_BACK " " NOCOLOR "\n");
-                char_counter = 0;
-            }
-        }
+        ws_echo(argv[2]);
     }
 
     else
