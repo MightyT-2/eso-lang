@@ -5,13 +5,13 @@ The only lexical tokens in the whitespace language are *Space* (ASCII 32), *Tab*
 
 The language itself is an imperative, stack based language. Each command consists of a series of tokens, beginning with the *Instruction Modification Parameter* (IMP). These are listed in the table below.
 
-|IMP          | Meaning           |
-|-------------|-------------------|
-|[Space]      | Stack Manipulation|
-|[Tab][Space] | Arithmetic        |
-|[Tab][Tab]   | Heap access       |
-|[LF]         | Flow Control      |
-|[Tab][LF]    | I/O               |
+| IMP          | Meaning            |
+|--------------|--------------------|
+| [Space]      | Stack Manipulation |
+| [Tab][Space] | Arithmetic         |
+| [Tab][Tab]   | Heap access        |
+| [LF]         | Flow Control       |
+| [Tab][LF]    | I/O                |
 
 The virtual machine on which programs run has a stack and a heap. The programmer is free to push arbitrary width integers onto the stack (only integers, currently there is no implementation of floating point or real numbers). The heap can also be accessed by the user as a permanent store of variables and data structures.
 
@@ -23,65 +23,78 @@ Labels are simply [LF] terminated lists of spaces and tabs. There is only one gl
 
 Stack manipulation is one of the more common operations, hence the shortness of the IMP [Space]. There are four stack instructions.
 
-|Command     | Parameters | Meaning                            |
-|------------|------------|------------------------------------|
-|[Space]     | Number     | Push the number onto the stack     |
-|[LF][Space] | -          | Duplicate the top item on the stack|
-|[LF][Tab]   | -          | Swap the top two items on the stack|
-|[LF][LF]    | -          | Discard the top item on the stack  |
+| Command     | Parameters | Meaning                             |
+|-------------|------------|-------------------------------------|
+| [Space]     | Number     | Push the number onto the stack      |
+| [LF][Space] | -          | Duplicate the top item on the stack |
+| [LF][Tab]   | -          | Swap the top two items on the stack |
+| [LF][LF]    | -          | Discard the top item on the stack   |
 
 ## Arithmetic (IMP: [Tab][Space])
 
-Arithmetic commands operate on the top two items on the stack, and replace them with the result of the operation. The first item pushed is considered to be left of the operator.
-Command	Parameters	Meaning
-[Space][Space]	-	Addition
-[Space][Tab]	-	Subtraction
-[Space][LF]	-	Multiplication
-[Tab][Space]	-	Integer Division
-[Tab][Tab]	-	Modulo
-Heap Access (IMP: [Tab][Tab])
+Arithmetic commands operate on the top two items on the stack, and replace them with the result of the operation. The first item pushed is considered to be *left* of the operator.
+
+| Command        | Parameters | Meaning          |
+|----------------|------------|------------------|
+| [Space][Space] | -          | Addition         |
+| [Space][Tab]   | -          | Subtraction      |
+| [Space][LF]    | -          | Multiplication   |
+| [Tab][Space]   | -          | Integer Division |
+| [Tab][Tab]     | -          | Modulo           |
+
+## Heap Access (IMP: [Tab][Tab])
 
 Heap access commands look at the stack to find the address of items to be stored or retrieved. To store an item, push the address then the value and run the store command. To retrieve an item, push the address and run the retrieve command, which will place the value stored in the location at the top of the stack.
-Command	Parameters	Meaning
-[Space]	-	Store
-[Tab]	-	Retrieve
-Flow Control (IMP: [LF])
+
+| Command | Parameters | Meaning  |
+|---------|------------|----------|
+| [Space] | -          | Store    |
+| [Tab]   | -          | Retrieve |
+
+## Flow Control (IMP: [LF])
 
 Flow control operations are also common. Subroutines are marked by labels, as well as the targets of conditional and unconditional jumps, by which loops can be implemented. Programs must be ended by means of [LF][LF][LF] so that the interpreter can exit cleanly.
-Command	Parameters	Meaning
-[Space][Space]	Label	Mark a location in the program
-[Space][Tab]	Label	Call a subroutine
-[Space][LF]	Label	Jump unconditionally to a label
-[Tab][Space]	Label	Jump to a label if the top of the stack is zero
-[Tab][Tab]	Label	Jump to a label if the top of the stack is negative
-[Tab][LF]	-	End a subroutine and transfer control back to the caller
-[LF][LF]	-	End the program
-I/O (IMP: [Tab][LF])
+
+| Command        | Parameters | Meaning                                                  |
+|----------------|------------|----------------------------------------------------------|
+| [Space][Space] | Label      | Mark a location in the program                           |
+| [Space][Tab]   | Label      | Call a subroutine                                        |
+| [Space][LF]    | Label      | Jump unconditionally to a label                          |
+| [Tab][Space]   | Label      | Jump to a label if the top of the stack is zero          |
+| [Tab][Tab]     | Label      | Jump to a label if the top of the stack is negative      |
+| [Tab][LF]      | -          | End a subroutine and transfer control back to the caller |
+| [LF][LF]       | -          | End the program                                          |
+
+## I/O (IMP: [Tab][LF])
 
 Finally, we need to be able to interact with the user. There are IO instructions for reading and writing numbers and individual characters. With these, string manipulation routines can be written.
 
-The read instructions take the heap address in which to store the result from the top of the stack.
-Command	Parameters	Meaning
-[Space][Space]	-	Output the character at the top of the stack
-[Space][Tab]	-	Output the number at the top of the stack
-[Tab][Space]	-	Read a character and place it in the location given by the top of the stack
-[Tab][Tab]	-	Read a number and place it in the location given by the top of the stack
-Annotated Example
+The *read* instructions take the heap address in which to store the result from the top of the stack.
+
+| Command        | Parameters | Meaning                                                                     |
+|----------------|------------|-----------------------------------------------------------------------------|
+| [Space][Space] | -          | Output the character at the top of the stack                                |
+| [Space][Tab]   | -          | Output the number at the top of the stack                                   |
+| [Tab][Space]   | -          | Read a character and place it in the location given by the top of the stack |
+| [Tab][Tab]     | -          | Read a number and place it in the location given by the top of the stack    |
+
+## Annotated Example
 
 Here is an annotated example of a program which counts from 1 to 10, outputting the current value as it goes.
-[Space][Space][Space][Tab][LF]	Put a 1 on the stack
-[LF][Space][Space][Space][Tab][Space][Space] [Space][Space][Tab][Tab][LF] 	Set a Label at this point
-[Space][LF][Space]	Duplicate the top stack item
-[Tab][LF][Space][Tab]	Output the current value
-[Space][Space][Space][Tab][Space][Tab][Space][LF] 	Put 10 (newline) on the stack...
-[Tab][LF][Space][Space]	...and output the newline
-[Space][Space][Space][Tab][LF]	Put a 1 on the stack
-[Tab][Space][Space][Space]	Addition. This increments our current value.
-[Space][LF][Space]	Duplicate that value so we can test it
-[Space][Space][Space][Tab][Space][Tab][Tab][LF] 	Push 11 onto the stack
-[Tab][Space][Space][Tab]	Subtraction. So if we've reached the end, we have a zero on the stack.
-[LF][Tab][Space][Space][Tab][Space][Space] [Space][Tab][Space][Tab][LF]	If we have a zero, jump to the end
-[LF][Space][LF][Space][Tab][Space] [Space][Space][Space][Tab][Tab][LF] 	Jump to the start
-[LF][Space][Space][Space][Tab][Space] [Space][Space][Tab][Space][Tab][LF] 	Set the end label
-[Space][LF][LF]	Discard our accumulator, to be tidy
-[LF][LF][LF]	Finish
+
+| [Space][Space][Space][Tab][LF]                                            | Put a 1 on the stack                                                   |
+| [LF][Space][Space][Space][Tab][Space][Space] [Space][Space][Tab][Tab][LF] | Set a Label at this point                                              |
+| [Space][LF][Space]                                                        | Duplicate the top stack item                                           |
+| [Tab][LF][Space][Tab]                                                     | Output the current value                                               |
+| [Space][Space][Space][Tab][Space][Tab][Space][LF]                         | Put 10 (newline) on the stack...                                       |
+| [Tab][LF][Space][Space]                                                   | ...and output the newline                                              |
+| [Space][Space][Space][Tab][LF]                                            | Put a 1 on the stack                                                   |
+| [Tab][Space][Space][Space]                                                | Addition. This increments our current value.                           |
+| [Space][LF][Space]                                                        | Duplicate that value so we can test it                                 |
+| [Space][Space][Space][Tab][Space][Tab][Tab][LF]                           | Push 11 onto the stack                                                 |
+| [Tab][Space][Space][Tab]                                                  | Subtraction. So if we've reached the end, we have a zero on the stack. |
+| [LF][Tab][Space][Space][Tab][Space][Space] [Space][Tab][Space][Tab][LF]   | If we have a zero, jump to the end                                     |
+| [LF][Space][LF][Space][Tab][Space] [Space][Space][Space][Tab][Tab][LF]    | Jump to the start                                                      |
+| [LF][Space][Space][Space][Tab][Space] [Space][Space][Tab][Space][Tab][LF] | Set the end label                                                      |
+| [Space][LF][LF]                                                           | Discard our accumulator, to be tidy                                    |
+| [LF][LF][LF]                                                              | Finish                                                                 |
