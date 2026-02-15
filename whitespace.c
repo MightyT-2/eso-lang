@@ -19,6 +19,28 @@
 #define MAGENTA_BACK "\x1b[45m"
 #define CYAN_BACK    "\x1b[46m"
 
+typedef struct instruction
+{
+    instruction *next_instruction;
+    int         instruction_number,
+                parameter;
+} instruction;
+
+typedef struct label
+{
+    instruction *label_location;
+    label       *next_label,
+                *previous_label;
+} label;
+
+typedef struct process
+{
+    instruction *first_instruction;
+    label       *first_label,
+                *last_label,
+                *current_label;
+} process;
+
 int ws_shell()
 {
     printf("A Whitespace Shell\n");
@@ -26,7 +48,12 @@ int ws_shell()
 
 int ws_interpret(char *file_location)
 {
-    printf("Run a program from a file\n");
+    // printf("Run a program from a file\n");
+    FILE *source_file;
+    char next_char;
+    process ws_process;
+
+
 }
 
 int ws_convert(char *file_name)
@@ -34,7 +61,6 @@ int ws_convert(char *file_name)
     FILE *source_file;
     char next_char;
     
-    // printf("Convert to character notation [s - space, t - tab, l - line feed]\n");
     source_file = fopen(file_name, "r");
     while ((next_char = fgetc(source_file)) != EOF)
     {
