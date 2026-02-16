@@ -19,6 +19,12 @@
 #define MAGENTA_BACK "\x1b[45m"
 #define CYAN_BACK    "\x1b[46m"
 
+typedef struct strchar
+{
+    char    character;
+    strchar *next_character;
+} strchar;
+
 typedef struct instruction
 {
     instruction *next_instruction;
@@ -46,14 +52,93 @@ int ws_shell()
     printf("A Whitespace Shell\n");
 }
 
+char find_next_token(FILE *source_file)
+{
+    char next_char;
+    do
+    {
+        next_char = fgetc(source_file);
+    } while(next_char != ' ' && next_char != '\t' && next_char != '\n' && next_char != EOF);
+    
+    return next_char;
+}
+
 int ws_interpret(char *file_location)
 {
     // printf("Run a program from a file\n");
-    FILE *source_file;
-    char next_char;
+    FILE    *source_file;
+    char    next_char;
     process ws_process;
 
+    source_file = fopen(file_location, "r");
+    while ((next_char = find_next_token(source_file)) != EOF)
+    {
 
+
+        /* Stack Manipulation */
+        if (next_char == ' ')
+        {
+            // | Command     | Parameters | Meaning                             |
+            // |-------------|------------|-------------------------------------|
+            // | [Space]     | Number     | Push the number onto the stack      |
+            // | [LF][Space] | -          | Duplicate the top item on the stack |
+            // | [LF][Tab]   | -          | Swap the top two items on the stack |
+            // | [LF][LF]    | -          | Discard the top item on the stack   |
+        }
+        
+        /* Tab */
+        else if (next_char == '\t')
+        {
+            
+            /* Arithmetic */
+            if (next_char == ' ')
+            {
+                // | Command        | Parameters | Meaning          |
+                // |----------------|------------|------------------|
+                // | [Space][Space] | -          | Addition         |
+                // | [Space][Tab]   | -          | Subtraction      |
+                // | [Space][LF]    | -          | Multiplication   |
+                // | [Tab][Space]   | -          | Integer Division |
+                // | [Tab][Tab]     | -          | Modulo           |
+            }
+    
+            
+            /* Heap Access */
+            else if (next_char == '\t')
+            {
+                // | Command | Parameters | Meaning  |
+                // |---------|------------|----------|
+                // | [Space] | -          | Store    |
+                // | [Tab]   | -          | Retrieve |
+            }
+            
+            
+            /* Input/Output */
+            else if (next_char == '\n')
+            {
+                // | Command        | Parameters | Meaning                                                                     |
+                // |----------------|------------|-----------------------------------------------------------------------------|
+                // | [Space][Space] | -          | Output the character at the top of the stack                                |
+                // | [Space][Tab]   | -          | Output the number at the top of the stack                                   |
+                // | [Tab][Space]   | -          | Read a character and place it in the location given by the top of the stack |
+                // | [Tab][Tab]     | -          | Read a number and place it in the location given by the top of the stack    |
+            }
+        }
+        
+        /* Flow Control */
+        else if (next_char == '\n')
+        {
+            // | Command        | Parameters | Meaning                                                  |
+            // |----------------|------------|----------------------------------------------------------|
+            // | [Space][Space] | Label      | Mark a location in the program                           |
+            // | [Space][Tab]   | Label      | Call a subroutine                                        |
+            // | [Space][LF]    | Label      | Jump unconditionally to a label                          |
+            // | [Tab][Space]   | Label      | Jump to a label if the top of the stack is zero          |
+            // | [Tab][Tab]     | Label      | Jump to a label if the top of the stack is negative      |
+            // | [Tab][LF]      | -          | End a subroutine and transfer control back to the caller |
+            // | [LF][LF]       | -          | End the program                                          |
+        }
+    }
 }
 
 int ws_convert(char *file_name)
