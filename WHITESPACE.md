@@ -23,12 +23,14 @@ Labels are simply [LF] terminated lists of spaces and tabs. There is only one gl
 
 Stack manipulation is one of the more common operations, hence the shortness of the IMP [Space]. There are four stack instructions.
 
-| Command     | Parameters | Meaning                             |
-|-------------|------------|-------------------------------------|
-| [Space]     | Number     | Push the number onto the stack      |
-| [LF][Space] | -          | Duplicate the top item on the stack |
-| [LF][Tab]   | -          | Swap the top two items on the stack |
-| [LF][LF]    | -          | Discard the top item on the stack   |
+| Command      | Parameters | Meaning                                                                                 |
+|--------------|------------|-----------------------------------------------------------------------------------------|
+| [Space]      | Number     | Push a number to the stack                                                              |
+| [LF][Space]  | -          | Duplicate the top item on the stack                                                     |
+| [LF][Tab]    | -          | Swap the top two items on the stack                                                     |
+| [LF][LF]     | -          | Discard the top item on the stack                                                       |
+| [Tab][Space] | Number     | Copy the nth item on the stack (given by the argument) onto the top of the stack (v0.3) |
+| [Tab][LF]    | Number     | Slide n items off the stack, keeping the top item (v0.3)                                |
 
 ## Arithmetic (IMP: [Tab][Space])
 
@@ -100,3 +102,32 @@ Here is an annotated example of a program which counts from 1 to 10, outputting 
 | [LF][Space][Space][Space][Tab][Space][Space][Space][Tab][Space][Tab][LF]  | Set the end label                                                      |
 | [Space][LF][LF]                                                           | Discard our accumulator, to be tidy                                    |
 | [LF][LF][LF]                                                              | Finish                                                                 |
+
+## List of All Instructions
+
+| Command                    | Parameters | Meaning                                                                                 |
+|----------------------------|------------|-----------------------------------------------------------------------------------------|
+| [Space][Space]             | Number     | Push a number to the stack                                                              |
+| [Space][Tab][Space]        | Number     | Copy the nth item on the stack (given by the argument) onto the top of the stack (v0.3) |
+| [Space][Tab][LF]           | Number     | Slide n items off the stack, keeping the top item (v0.3)                                |
+| [Space][LF][Space]         | -          | Duplicate the top item on the stack                                                     |
+| [Space][LF][Tab]           | -          | Swap the top two items on the stack                                                     |
+| [Space][LF][LF]            | -          | Discard the top item on the stack                                                       |
+| [Tab][Space][Space][Space] | -          | Addition                                                                                |
+| [Tab][Space][Space][Tab]   | -          | Subtraction                                                                             |
+| [Tab][Space][Space][LF]    | -          | Multiplication                                                                          |
+| [Tab][Space][Tab][Space]   | -          | Integer Division                                                                        |
+| [Tab][Space][Tab][Tab]     | -          | Modulo                                                                                  |
+| [Tab][Tab][Space]          | -          | Store                                                                                   |
+| [Tab][Tab][Tab]            | -          | Retrieve                                                                                |
+| [Tab][LF][Space][Space]    | -          | Output the character at the top of the stack                                            |
+| [Tab][LF][Space][Tab]      | -          | Output the number at the top of the stack                                               |
+| [Tab][LF][Tab][Space]      | -          | Read a character and place it in the location given by the top of the stack             |
+| [Tab][LF][Tab][Tab]        | -          | Read a number and place it in the location given by the top of the stack                |
+| [LF][Space][Space]         | Label      | Mark a location in the program                                                          |
+| [LF][Space][Tab]           | Label      | Call a subroutine                                                                       |
+| [LF][Space][LF]            | Label      | Jump unconditionally to a label                                                         |
+| [LF][Tab][Space]           | Label      | Jump to a label if the top of the stack is zero                                         |
+| [LF][Tab][Tab]             | Label      | Jump to a label if the top of the stack is negative                                     |
+| [LF][Tab][LF]              | -          | End a subroutine and transfer control back to the caller                                |
+| [LF][LF][LF]               | -          | End the program                                                                         |
