@@ -2,6 +2,7 @@
 // If no arguments are passed, it should act as a shell, similar to JShell or just typing Python in the terminal
 
 // TODO: different versions
+// TODO: proper error handling
 
 #include <stdio.h>
 #include <string.h>
@@ -54,6 +55,14 @@ typedef struct process
                 *last_label,
                 *current_label;
 } process;
+
+typedef struct heap_entry
+{
+    struct heap_entry *next_entry,
+                      *prev_entry;
+    int32_t           heap_value;
+    uint32_t          entry_id;
+} heap_entry;
 
 int ws_shell()
 {
@@ -176,20 +185,44 @@ int ws_load(char *file_location, process *empty_process)
     // printf("Run a program from a file\n");
     FILE        *source_file;
     char        next_char;
-    instruction *current_instruct,
+    instruction *current_instruct = NULL,
                 *previous_instruct = NULL;
-    label       *current_label,
+    label       *current_label = NULL,
                 *previous_label = NULL;
     int         is_label = 0;
     
-
-    empty_process->first_instruction = (instruction *)malloc(sizeof(instruction));
-    empty_process->first_label = (label *)malloc(sizeof(label));
-    current_instruct = empty_process->first_instruction;
-    current_label = empty_process->first_label;
     source_file = fopen(file_location, "r");
     while ((next_char = find_next_token(source_file)) != EOF)
     {
+        if (current_instruct == NULL && current_label == NULL)
+        {
+            empty_process->first_instruction = (instruction *)calloc(1, sizeof(instruction));
+            empty_process->first_label = (label *)calloc(1, sizeof(label));
+            current_instruct = empty_process->first_instruction;
+            current_label = empty_process->first_label;
+        }
+        else
+        {
+            if(is_label != 1)
+            {
+                if(is_label == 2)
+                {
+                    current_label->instruct_location = current_instruct;
+                    current_label->next_label = (label *)calloc(1, sizeof(label));
+                    current_label->next_label->previous_label = current_label;
+                    previous_label = current_label;
+                    current_label = current_label->next_label;
+                    is_label = 0;
+                }
+                current_instruct->next_instruct = (instruction *)calloc(1, sizeof(instruction));
+                previous_instruct = current_instruct;
+                current_instruct = current_instruct->next_instruct;
+            }
+            else
+            {
+                is_label = 2;
+            }
+        }
 
         /* Stack Manipulation */
         if (next_char == ' ')
@@ -198,7 +231,6 @@ int ws_load(char *file_location, process *empty_process)
             if ((next_char = find_next_token(source_file)) == ' ')
             {
                 current_instruct->instruct_num = 1;
-                current_instruct->label_param = 0;
                 current_instruct->int_param = get_int(source_file);
                 printf("Push a number to the stack\n");
             }
@@ -209,7 +241,6 @@ int ws_load(char *file_location, process *empty_process)
                 if ((next_char = find_next_token(source_file)) == ' ')
                 {
                     current_instruct->instruct_num = 2;
-                    current_instruct->label_param = 0;
                     current_instruct->int_param = get_int(source_file);
                     printf("Copy the nth item on the stack (given by the argument) onto the top of the stack\n");
                 }
@@ -218,7 +249,6 @@ int ws_load(char *file_location, process *empty_process)
                 else if (next_char == '\n')
                 {
                     current_instruct->instruct_num = 3;
-                    current_instruct->label_param = 0;
                     current_instruct->int_param = get_int(source_file);
                     printf("Slide n items off the stack, keeping the top item\n");
                 }
@@ -236,8 +266,6 @@ int ws_load(char *file_location, process *empty_process)
                 if ((next_char = find_next_token(source_file)) == ' ')
                 {
                     current_instruct->instruct_num = 4;
-                    current_instruct->label_param = 0;
-                    current_instruct->int_param = 0;
                     printf("Duplicate the top item on the stack\n");
                 }
                 
@@ -245,8 +273,6 @@ int ws_load(char *file_location, process *empty_process)
                 else if (next_char == '\t')
                 {
                     current_instruct->instruct_num = 5;
-                    current_instruct->label_param = 0;
-                    current_instruct->int_param = 0;
                     printf("Swap the top two items on the stack\n");
                 }
                 
@@ -254,8 +280,6 @@ int ws_load(char *file_location, process *empty_process)
                 else if (next_char == '\n')
                 {
                     current_instruct->instruct_num = 6;
-                    current_instruct->label_param = 0;
-                    current_instruct->int_param = 0;
                     printf("Discard the top item on the stack\n");
                 }
                 
@@ -286,8 +310,6 @@ int ws_load(char *file_location, process *empty_process)
                     if ((next_char = find_next_token(source_file)) == ' ')
                     {
                         current_instruct->instruct_num = 7;
-                        current_instruct->label_param = 0;
-                        current_instruct->int_param = 0;
                         printf("Addition\n");
                     }
                     
@@ -295,8 +317,6 @@ int ws_load(char *file_location, process *empty_process)
                     else if (next_char == '\t')
                     {
                         current_instruct->instruct_num = 8;
-                        current_instruct->label_param = 0;
-                        current_instruct->int_param = 0;
                         printf("Subtraction\n");
                     }
                     
@@ -304,8 +324,6 @@ int ws_load(char *file_location, process *empty_process)
                     else if (next_char == '\n')
                     {
                         current_instruct->instruct_num = 9;
-                        current_instruct->label_param = 0;
-                        current_instruct->int_param = 0;
                         printf("Multiplication\n");
                     }
                     
@@ -322,8 +340,6 @@ int ws_load(char *file_location, process *empty_process)
                     if ((next_char = find_next_token(source_file)) == ' ')
                     {
                         current_instruct->instruct_num = 10;
-                        current_instruct->label_param = 0;
-                        current_instruct->int_param = 0;
                         printf("Integer Division\n");
                     }
                     
@@ -331,8 +347,6 @@ int ws_load(char *file_location, process *empty_process)
                     else if (next_char == '\t')
                     {
                         current_instruct->instruct_num = 11;
-                        current_instruct->label_param = 0;
-                        current_instruct->int_param = 0;
                         printf("Modulo\n");
                     }
                     
@@ -357,8 +371,6 @@ int ws_load(char *file_location, process *empty_process)
                 if ((next_char = find_next_token(source_file)) == ' ')
                 {
                     current_instruct->instruct_num = 12;
-                    current_instruct->label_param = 0;
-                    current_instruct->int_param = 0;
                     printf("Store\n");
                     
                 }
@@ -367,8 +379,6 @@ int ws_load(char *file_location, process *empty_process)
                 else if (next_char == '\t')
                 {
                     current_instruct->instruct_num = 13;
-                    current_instruct->label_param = 0;
-                    current_instruct->int_param = 0;
                     printf("Retrieve\n");
                 }
                 
@@ -389,8 +399,6 @@ int ws_load(char *file_location, process *empty_process)
                     if ((next_char = find_next_token(source_file)) == ' ')
                     {
                         current_instruct->instruct_num = 14;
-                        current_instruct->label_param = 0;
-                        current_instruct->int_param = 0;
                         printf("Output the character at the top of the stack\n");
                     }
                     
@@ -398,8 +406,6 @@ int ws_load(char *file_location, process *empty_process)
                     else if (next_char == '\t')
                     {
                         current_instruct->instruct_num = 15;
-                        current_instruct->label_param = 0;
-                        current_instruct->int_param = 0;
                         printf("Output the number at the top of the stack\n");
                     }
                     
@@ -416,8 +422,6 @@ int ws_load(char *file_location, process *empty_process)
                     if ((next_char = find_next_token(source_file)) == ' ')
                     {
                         current_instruct->instruct_num = 16;
-                        current_instruct->label_param = 0;
-                        current_instruct->int_param = 0;
                         printf("Read a character and place it in the location given by the top of the stack\n");
                     }
                     
@@ -425,8 +429,6 @@ int ws_load(char *file_location, process *empty_process)
                     else if (next_char == '\t')
                     {
                         current_instruct->instruct_num = 17;
-                        current_instruct->label_param = 0;
-                        current_instruct->int_param = 0;
                         printf("Read a number and place it in the location given by the top of the stack\n");
                     }
                     
@@ -469,7 +471,6 @@ int ws_load(char *file_location, process *empty_process)
                 {
                     current_instruct->instruct_num = 18;
                     current_instruct->label_param = get_label(source_file);
-                    current_instruct->int_param = 0;
                     printf("Call a subroutine\n");
                 }
                 
@@ -478,7 +479,6 @@ int ws_load(char *file_location, process *empty_process)
                 {
                     current_instruct->instruct_num = 19;
                     current_instruct->label_param = get_label(source_file);
-                    current_instruct->int_param = 0;
                     printf("Jump unconditionally to a label\n");
                 }
                 
@@ -497,7 +497,6 @@ int ws_load(char *file_location, process *empty_process)
                 {
                     current_instruct->instruct_num = 20;
                     current_instruct->label_param = get_label(source_file);
-                    current_instruct->int_param = 0;
                     printf("Jump to a label if the top of the stack is zero\n");
                 }
                 
@@ -506,7 +505,6 @@ int ws_load(char *file_location, process *empty_process)
                 {
                     current_instruct->instruct_num = 21;
                     current_instruct->label_param = get_label(source_file);
-                    current_instruct->int_param = 0;
                     printf("Jump to a label if the top of the stack is negative\n");
                 }
                 
@@ -515,7 +513,6 @@ int ws_load(char *file_location, process *empty_process)
                 {
                     current_instruct->instruct_num = 22;
                     current_instruct->label_param = get_label(source_file);
-                    current_instruct->int_param = 0;
                     printf("End a subroutine and transfer control back to the caller\n");
                 }
                 
@@ -533,8 +530,6 @@ int ws_load(char *file_location, process *empty_process)
                 if ((next_char = find_next_token(source_file)) == '\n')
                 {
                     current_instruct->instruct_num = 23;
-                    current_instruct->label_param = 0;
-                    current_instruct->int_param = 0;
                     printf("End the program\n");
                 }
                 
@@ -557,57 +552,166 @@ int ws_load(char *file_location, process *empty_process)
             printf("Exiting. Invalid instruction\n");
             exit(1);
         }
-        
-        if(is_label != 1)
-        {
-            if(is_label == 2)
-            {
-                is_label = 0;
-                current_label->instruct_location = current_instruct;
-                current_label->next_label = (label *)malloc(sizeof(label));
-                current_label->next_label->previous_label = current_label;
-                previous_label = current_label;
-                current_label = current_label->next_label;
-            }
-            current_instruct->next_instruct = (instruction *)malloc(sizeof(instruction));
-            previous_instruct = current_instruct;
-            current_instruct = current_instruct->next_instruct;
-        }
-        else
-        {
-            is_label = 2;
-        }
     }
-    free(current_instruct);
     if (previous_instruct == NULL)
     {
-        printf("Exiting. No instructions have been generated.");
+        printf("Exiting. No instructions have been generated.\n");
         exit(1);
-    }
-    else
-    {
-        previous_instruct->next_instruct = NULL;
-    }
-    printf("here %d\n", current_label->label_id);
-    free(current_label);
-    if (previous_instruct == NULL)
-    {
-        empty_process->first_label = NULL;
-        empty_process->last_label = NULL;
-        empty_process->current_label = NULL;
-    }
-    else
-    {
-        previous_label->next_label = NULL;
     }
     
     if (is_label == 2)
     {
-        printf("Exiting. Label pointing past instructions.");
+        printf("Exiting. Label pointing past instructions.\n");
     }
 
     
     return 0;
+}
+
+int ws_run(process running_process)
+{
+    int32_t     *stack_base,
+                *stack_entry;
+    instruction **call_stack_base,
+                **call_stack_entry;
+    heap_entry  *first_heap_entry = NULL,
+                *current_heap_entry = NULL;
+    int32_t     register_1,
+                register_2;
+
+    if ((stack_base = (int32_t *)malloc(1024 * sizeof(int32_t))) == NULL)
+    {
+        printf("Exiting. Not enough memory for stack allocation\n");
+        exit(1);
+    }
+    stack_entry = stack_base;
+    if ((call_stack_base = (instruction **)malloc(1024 * sizeof(instruction **))) == NULL)
+    {
+        printf("Exiting. Not enough memory for call stack allocation\n");
+        exit(1);
+    }
+    call_stack_entry = call_stack_base;
+
+    // 23 | [LF][LF][LF] | - | End the program |
+    while (running_process.current_instruction->instruct_num != 23)
+    {
+        // 1  | [Space][Space] | Number | Push a number to the stack |
+        if (running_process.current_instruction->instruct_num == 1)
+        {
+            stack_entry--;
+            if (stack_entry < stack_base)
+            {
+                printf("Exiting. Stack underflow.\n");
+                exit(1);
+            }
+            register_1 = *stack_entry;
+            stack_entry--;
+            if (stack_entry < stack_base)
+            {
+                printf("Exiting. Stack underflow.\n");
+                exit(1);
+            }
+            register_2 = *stack_entry;
+            *stack_entry = register_1 + register_2;
+            stack_entry++;
+        }
+        // 2  | [Space][Tab][Space]        | Number     | Copy the nth item on the stack (given by the argument) onto the top of the stack (v0.3) |
+        else if (running_process.current_instruction->instruct_num == 2)
+        {
+        }
+        // 3  | [Space][Tab][LF]           | Number     | Slide n items off the stack, keeping the top item (v0.3)                                |
+        else if (running_process.current_instruction->instruct_num == 3)
+        {
+        }
+        // 4  | [Space][LF][Space]         | -          | Duplicate the top item on the stack                                                     |
+        else if (running_process.current_instruction->instruct_num == 4)
+        {
+        }
+        // 5  | [Space][LF][Tab]           | -          | Swap the top two items on the stack                                                     |
+        else if (running_process.current_instruction->instruct_num == 5)
+        {
+        }
+        // 6  | [Space][LF][LF]            | -          | Discard the top item on the stack                                                       |
+        else if (running_process.current_instruction->instruct_num == 6)
+        {
+        }
+        // 7  | [Tab][Space][Space][Space] | -          | Addition                                                                                |
+        else if (running_process.current_instruction->instruct_num == 7)
+        {
+        }
+        // 8  | [Tab][Space][Space][Tab]   | -          | Subtraction                                                                             |
+        else if (running_process.current_instruction->instruct_num == 8)
+        {
+        }
+        // 9  | [Tab][Space][Space][LF]    | -          | Multiplication                                                                          |
+        else if (running_process.current_instruction->instruct_num == 9)
+        {
+        }
+        // 10 | [Tab][Space][Tab][Space]   | -          | Integer Division                                                                        |
+        else if (running_process.current_instruction->instruct_num == 10)
+        {
+        }
+        // 11 | [Tab][Space][Tab][Tab]     | -          | Modulo                                                                                  |
+        else if (running_process.current_instruction->instruct_num == 11)
+        {
+        }
+        // 12 | [Tab][Tab][Space]          | -          | Store                                                                                   |
+        else if (running_process.current_instruction->instruct_num == 12)
+        {
+        }
+        // 13 | [Tab][Tab][Tab]            | -          | Retrieve                                                                                |
+        else if (running_process.current_instruction->instruct_num == 13)
+        {
+        }
+        // 14 | [Tab][LF][Space][Space]    | -          | Output the character at the top of the stack                                            |
+        else if (running_process.current_instruction->instruct_num == 14)
+        {
+        }
+        // 15 | [Tab][LF][Space][Tab]      | -          | Output the number at the top of the stack                                               |
+        else if (running_process.current_instruction->instruct_num == 15)
+        {
+        }
+        // 16 | [Tab][LF][Tab][Space]      | -          | Read a character and place it in the location given by the top of the stack             |
+        else if (running_process.current_instruction->instruct_num == 16)
+        {
+        }
+        // 17 | [Tab][LF][Tab][Tab]        | -          | Read a number and place it in the location given by the top of the stack                |
+        else if (running_process.current_instruction->instruct_num == 17)
+        {
+        }
+        // 18 | [LF][Space][Tab]           | Label      | Call a subroutine                                                                       |
+        else if (running_process.current_instruction->instruct_num == 18)
+        {
+        }
+        // 19 | [LF][Space][LF]            | Label      | Jump unconditionally to a label                                                         |
+        else if (running_process.current_instruction->instruct_num == 19)
+        {
+        }
+        // 20 | [LF][Tab][Space]           | Label      | Jump to a label if the top of the stack is zero                                         |
+        else if (running_process.current_instruction->instruct_num == 20)
+        {
+        }
+        // 21 | [LF][Tab][Tab]             | Label      | Jump to a label if the top of the stack is negative                                     |
+        else if (running_process.current_instruction->instruct_num == 21)
+        {
+        }
+        // 22 | [LF][Tab][LF]              | -          | End a subroutine and transfer control back to the caller                                |
+        else if (running_process.current_instruction->instruct_num == 22)
+        {
+        }
+        else
+        {
+            printf("Exiting. Invalid Instruction");
+            exit(1);
+        }
+
+        if (running_process.current_instruction->next_instruct == NULL)
+        {
+            printf("Exiting. Terminating program with no end instruction.\n");
+            exit(1);
+        }
+        running_process.current_instruction = running_process.current_instruction->next_instruct;
+    }
 }
 
 int ws_convert(char *file_name)
@@ -667,6 +771,7 @@ int ws_echo(char* file_name)
 int main(int argc, char *argv[])
 {
     process user_process;
+    int32_t test = -32;
 
     /* Shell */
     if (argc == 1)
