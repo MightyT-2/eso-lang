@@ -21,7 +21,7 @@ Labels are simply [LF] terminated lists of spaces and tabs. There is only one gl
 
 ## Stack Manipulation (IMP: [Space])
 
-Stack manipulation is one of the more common operations, hence the shortness of the IMP [Space]. There are four stack instructions.
+Stack manipulation is one of the more common operations, hence the shortness of the IMP [Space]. There are six stack instructions.
 
 | Command      | Parameters | Meaning                                                                                 |
 |--------------|------------|-----------------------------------------------------------------------------------------|
