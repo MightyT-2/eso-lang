@@ -28,6 +28,7 @@
 #define ERR_STACK_OVERFLOW  "Exiting. Stack overflow.\n"
 #define ERR_STACK_UNDERFLOW "Exiting. Stack underflow.\n"
 #define ERR_INVAL_INSTRUCT  "Exiting. Invalid instruction.\n"
+#define HERE "here\n" // debug message
 
 typedef struct strchar
 {
@@ -40,7 +41,7 @@ typedef struct instruction
     struct instruction *next_instruct;
     uint8_t            instruct_num;
     int32_t            int_param;
-    uint32_t           label_param;
+    char               *label_param;
 } instruction;
 
 typedef struct label
@@ -48,7 +49,7 @@ typedef struct label
     instruction  *instruct_location;
     struct label *next_label,
                  *previous_label;
-    uint32_t     label_id;
+    char         *label_id;
 } label;
 
 typedef struct process
@@ -84,42 +85,58 @@ char find_next_token(FILE *source_file)
     return next_char;
 }
 
-uint32_t get_label(FILE *source_file)
+char *get_label(FILE *source_file)
 {
-    uint32_t return_label = 0;
-    int      digit_count = 0;
-    char     next_char;
+    char *return_label,
+         *label_entry,
+         next_char;
+    int  char_count = 0;
+    strchar *label_holder = NULL,
+            *curr_char = NULL;
 
-    while ((next_char = find_next_token(source_file)) != '\n')
+    if ((next_char = find_next_token(source_file)) != '\n')
     {
-        if (next_char == ' ')
+        do
         {
-            return_label = return_label << 1;
-            if (return_label != 0)
+            if (label_holder == NULL)
             {
-                digit_count++;
+                if ((label_holder = (strchar *)calloc(1, sizeof(strchar))) == NULL);
+                curr_char = label_holder;
             }
-        }
-        
-        else if (next_char == '\t')
-        {
-            return_label = return_label << 1;
-            return_label++;
-            digit_count++;
-        }
-        
-        else if (next_char == EOF)
-        {
-            printf("Exiting. Invalid label.\n");
-            exit(1);
-        }
-        if (digit_count > 32)
-        {
-            printf("Exiting. Label too large.\n");
-            exit(1);
-        }
-    }
+            else
+            {
+                curr_char->next_character = (strchar *)calloc(1, sizeof(strchar));
+                curr_char = curr_char->next_character;
+            }
     
+            if (next_char == ' ')
+            {
+                curr_char->character = ' ';
+            }
+            
+            else if (next_char == '\t')
+            {
+                curr_char->character = '\t';
+            }
+    
+            else if (next_char == EOF)
+            {
+                printf("Exiting. Invalid label.\n");
+                exit(1);
+            }
+            char_count++;
+        }
+        while ((next_char = find_next_token(source_file)) != '\n');
+    }
+
+    return_label = (char *)calloc(char_count + 1, sizeof(char));
+    label_entry = return_label;
+    
+    for (curr_char = label_holder; curr_char->next_character != NULL; curr_char = curr_char->next_character)
+    {
+        *label_entry = curr_char->character;
+        label_entry++;
+    }
     return return_label;
 }
 
@@ -161,12 +178,12 @@ int32_t get_int(FILE *source_file)
         
         else if (next_char == EOF)
         {
-            printf("Exiting. Invalid label.\n");
+            printf("Exiting. Invalid integer.\n");
             exit(1);
         }
-        if (digit_count > 32)
+        if (digit_count > 64)
         {
-            printf("Exiting. Label too large.\n");
+            printf("Exiting. Integer too large.\n");
             exit(1);
         }
     }
@@ -521,7 +538,6 @@ int ws_load(char *file_location, process *empty_process)
                 else if (next_char == '\n')
                 {
                     current_instruct->instruct_num = 22;
-                    current_instruct->label_param = get_label(source_file);
                 }
                 
                 else
@@ -1014,13 +1030,13 @@ int ws_run(process running_process)
                 exit(1);
             }
             running_process.current_label = running_process.first_label;
-            while (running_process.current_label->label_id != running_process.current_instruction->label_param &&running_process.current_label != running_process.last_label)
+            while (strcmp(running_process.current_label->label_id, running_process.current_instruction->label_param) != 0 && running_process.current_label != running_process.last_label)
             {
                 running_process.current_label = running_process.current_label->next_label;
             }
-            if (running_process.current_label->label_id != running_process.current_instruction->label_param)
+            if (strcmp(running_process.current_label->label_id, running_process.current_instruction->label_param) != 0)
             {
-                printf("Exiting. No label %u.\n", running_process.current_instruction->label_param);
+                printf("Exiting. No label matching requested label.\n");
                 exit(1);
             }
             if (call_stack_entry - call_stack_base > STACK_SIZE)
@@ -1041,13 +1057,13 @@ int ws_run(process running_process)
                 exit(1);
             }
             running_process.current_label = running_process.first_label;
-            while (running_process.current_label->label_id != running_process.current_instruction->label_param &&running_process.current_label != running_process.last_label)
+            while (strcmp(running_process.current_label->label_id, running_process.current_instruction->label_param) != 0 && running_process.current_label != running_process.last_label)
             {
                 running_process.current_label = running_process.current_label->next_label;
             }
-            if (running_process.current_label->label_id != running_process.current_instruction->label_param)
+            if (strcmp(running_process.current_label->label_id, running_process.current_instruction->label_param) != 0)
             {
-                printf("Exiting. No label %u.\n", running_process.current_instruction->label_param);
+                printf("Exiting. No label matching requested label.\n");
                 exit(1);
             }
             if (call_stack_entry - call_stack_base > STACK_SIZE)
@@ -1071,13 +1087,13 @@ int ws_run(process running_process)
                 exit(1);
             }
             running_process.current_label = running_process.first_label;
-            while (running_process.current_label->label_id != running_process.current_instruction->label_param &&running_process.current_label != running_process.last_label)
+            while (strcmp(running_process.current_label->label_id, running_process.current_instruction->label_param) != 0 && running_process.current_label != running_process.last_label)
             {
                 running_process.current_label = running_process.current_label->next_label;
             }
-            if (running_process.current_label->label_id != running_process.current_instruction->label_param)
+            if (strcmp(running_process.current_label->label_id, running_process.current_instruction->label_param) != 0)
             {
-                printf("Exiting. No label %u.\n", running_process.current_instruction->label_param);
+                printf("Exiting. No label matching requested label.\n");
                 exit(1);
             }
             if (call_stack_entry - call_stack_base > STACK_SIZE)
@@ -1115,13 +1131,13 @@ int ws_run(process running_process)
                 exit(1);
             }
             running_process.current_label = running_process.first_label;
-            while (running_process.current_label->label_id != running_process.current_instruction->label_param &&running_process.current_label != running_process.last_label)
+            while (strcmp(running_process.current_label->label_id, running_process.current_instruction->label_param) != 0 && running_process.current_label != running_process.last_label)
             {
                 running_process.current_label = running_process.current_label->next_label;
             }
-            if (running_process.current_label->label_id != running_process.current_instruction->label_param)
+            if (strcmp(running_process.current_label->label_id, running_process.current_instruction->label_param) != 0)
             {
-                printf("Exiting. No label %u.\n", running_process.current_instruction->label_param);
+                printf("Exiting. No label matching requested label.\n");
                 exit(1);
             }
             if (call_stack_entry - call_stack_base > STACK_SIZE)
@@ -1154,6 +1170,7 @@ int ws_run(process running_process)
             running_process.current_instruction = running_process.current_instruction->next_instruct;
         }
     }
+    debug_heap_dump(current_heap_entry);
 }
 
 int ws_convert(char *file_name)
@@ -1213,7 +1230,6 @@ int ws_echo(char* file_name)
 int main(int argc, char *argv[])
 {
     process user_process;
-    int32_t test = -32;
 
     /* Shell */
     if (argc == 1)
