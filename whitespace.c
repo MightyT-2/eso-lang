@@ -27,6 +27,8 @@
 #define STACK_SIZE   1024
 #define ERR_STACK_OVERFLOW  "Exiting. Stack overflow.\n"
 #define ERR_STACK_UNDERFLOW "Exiting. Stack underflow.\n"
+#define ERR_CALL_STACK_OVERFLOW  "Exiting. Stack overflow.\n"
+#define ERR_CALL_STACK_UNDERFLOW "Exiting. Stack underflow.\n"
 #define ERR_INVAL_INSTRUCT  "Exiting. Invalid instruction.\n"
 #define HERE "here\n" // debug message
 
@@ -227,6 +229,13 @@ void debug_heap_dump(heap_entry *cur_heap_entry)
     }
     printf("%05d: %d\n", cur_heap_entry->entry_id, cur_heap_entry->heap_value);
     return;
+}
+
+void debug_step()
+{
+    char empty[1];
+
+    scanf("%1c", empty);
 }
 
 int ws_load(char *file_location, process *empty_process)
@@ -624,7 +633,9 @@ int ws_run(process running_process)
         // printf("%d\n", debug_int++);
         // printf("here %d\n", running_process.current_instruction->instruct_num);
         // debug_stack_dump(stack_base, stack_entry);
-        // printf("Current instruction: %2d, Int param: %d, Label param: %d\n", running_process.current_instruction->instruct_num, running_process.current_instruction->int_param, running_process.current_instruction->label_param);
+        // printf("Call Stack Dump:\nLength: %ld\n", call_stack_entry - call_stack_base);
+        // printf("Current instruction: %2d, Int param: %d\n", running_process.current_instruction->instruct_num, running_process.current_instruction->int_param);
+        // debug_step();
         if (running_process.current_instruction->instruct_num > 23 )
         {
             printf("Exiting. Invalid Instruction");
@@ -950,7 +961,7 @@ int ws_run(process running_process)
         // 17 | [Tab][LF][Tab][Tab] | - | Read a number and place it in the location given by the top of the stack |
         else if (running_process.current_instruction->instruct_num == 17)
         {
-            debug_stack_dump(stack_base, stack_entry);
+            // debug_stack_dump(stack_base, stack_entry);
             if (stack_entry < stack_base + 1)
             {
                 printf(ERR_STACK_UNDERFLOW);
@@ -961,14 +972,14 @@ int ws_run(process running_process)
                 first_heap_entry = calloc(1, sizeof(heap_entry));
                 current_heap_entry = first_heap_entry;
             }
-            else if (current_heap_entry->entry_id > *(stack_entry - 2))
+            else if (current_heap_entry->entry_id > *(stack_entry - 1))
             {
                 do
                 {
                     current_heap_entry = current_heap_entry->prev_entry;
                 }
-                while (current_heap_entry->entry_id > *(stack_entry - 2) && current_heap_entry->prev_entry != NULL);
-                if (current_heap_entry->entry_id < *(stack_entry - 2))
+                while (current_heap_entry->entry_id > *(stack_entry - 1) && current_heap_entry->prev_entry != NULL);
+                if (current_heap_entry->entry_id < *(stack_entry - 1))
                 {
                     current_heap_entry->next_entry->prev_entry = calloc(1, sizeof(heap_entry));
                     current_heap_entry->next_entry->prev_entry->prev_entry = current_heap_entry;
@@ -976,21 +987,21 @@ int ws_run(process running_process)
                     current_heap_entry->next_entry = current_heap_entry->next_entry->prev_entry;
                     current_heap_entry = current_heap_entry->next_entry;
                 }
-                else if (current_heap_entry->prev_entry == NULL && current_heap_entry->entry_id != *(stack_entry - 2))
+                else if (current_heap_entry->prev_entry == NULL && current_heap_entry->entry_id != *(stack_entry - 1))
                 {
                     current_heap_entry->prev_entry = calloc(1, sizeof(heap_entry));
                     current_heap_entry->prev_entry->next_entry = current_heap_entry;
                     current_heap_entry = current_heap_entry->prev_entry;
                 }
             }
-            else if (current_heap_entry->entry_id < *(stack_entry - 2))
+            else if (current_heap_entry->entry_id < *(stack_entry - 1))
             {
                 do
                 {
                     current_heap_entry = current_heap_entry->next_entry;
                 }
-                while (current_heap_entry->entry_id < *(stack_entry - 2) && current_heap_entry->next_entry != NULL);
-                if (current_heap_entry->entry_id > *(stack_entry - 2))
+                while (current_heap_entry->entry_id < *(stack_entry - 1) && current_heap_entry->next_entry != NULL);
+                if (current_heap_entry->entry_id > *(stack_entry - 1))
                 {
                     current_heap_entry->prev_entry->next_entry = calloc(1, sizeof(heap_entry));
                     current_heap_entry->prev_entry->next_entry->next_entry = current_heap_entry;
@@ -998,29 +1009,18 @@ int ws_run(process running_process)
                     current_heap_entry->prev_entry = current_heap_entry->prev_entry->next_entry;
                     current_heap_entry = current_heap_entry->prev_entry;
                 }
-                else if (current_heap_entry->next_entry == NULL && current_heap_entry->entry_id != *(stack_entry - 2))
+                else if (current_heap_entry->next_entry == NULL && current_heap_entry->entry_id != *(stack_entry - 1))
                 {
                     current_heap_entry->next_entry = calloc(1, sizeof(heap_entry));
                     current_heap_entry->next_entry->prev_entry = current_heap_entry;
                     current_heap_entry = current_heap_entry->next_entry;
                 }
             }
-            current_heap_entry->entry_id = *(stack_entry - 2);
+            current_heap_entry->entry_id = *(stack_entry - 1);
             scanf("%d", &(current_heap_entry->heap_value));
             stack_entry--;
         }
-        // 22 | [LF][Tab][LF] | - | End a subroutine and transfer control back to the caller |
-        else if (running_process.current_instruction->instruct_num == 22)
-        {
-            if (call_stack_entry < call_stack_base + 1)
-            {
-                printf(ERR_STACK_UNDERFLOW);
-                exit(1);
-            }
-            call_stack_entry--;
-            running_process.current_instruction = *call_stack_entry;
-        }
-
+        
         // 18 | [LF][Space][Tab] | Label | Call a subroutine |
         if (running_process.current_instruction->instruct_num == 18)
         {
@@ -1160,6 +1160,23 @@ int ws_run(process running_process)
             }
             stack_entry--;
         }
+        // 22 | [LF][Tab][LF] | - | End a subroutine and transfer control back to the caller |
+        else if (running_process.current_instruction->instruct_num == 22)
+        {
+            if (call_stack_entry < call_stack_base + 1)
+            {
+                printf(ERR_CALL_STACK_UNDERFLOW);
+                exit(1);
+            }
+            call_stack_entry--;
+            running_process.current_instruction = *call_stack_entry;
+            if (running_process.current_instruction->next_instruct == NULL)
+            {
+                printf("Exiting. Terminating program with no end instruction.\n");
+                exit(1);
+            }
+            running_process.current_instruction = running_process.current_instruction->next_instruct;
+        }
         else
         {
             if (running_process.current_instruction->next_instruct == NULL)
@@ -1170,7 +1187,7 @@ int ws_run(process running_process)
             running_process.current_instruction = running_process.current_instruction->next_instruct;
         }
     }
-    debug_heap_dump(current_heap_entry);
+    // debug_heap_dump(current_heap_entry);
 }
 
 int ws_convert(char *file_name)
