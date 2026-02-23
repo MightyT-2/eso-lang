@@ -655,9 +655,9 @@ int ws_run(process running_process)
         // 2  | [Space][Tab][Space] | Number | Copy the nth item on the stack (given by the argument) onto the top of the stack (v0.3) |
         else if (running_process.current_instruction->instruct_num == 2)
         {
-            if (running_process.current_instruction->int_param > stack_entry - stack_base)
+            if (stack_entry < stack_base + running_process.current_instruction->int_param)
             {
-                printf("Exiting. Instruction reaches outside stack space.\n");
+                printf(ERR_STACK_UNDERFLOW);
                 exit(1);
             }
             if (stack_entry - stack_base > STACK_SIZE)
@@ -665,7 +665,7 @@ int ws_run(process running_process)
                 printf(ERR_STACK_OVERFLOW);
                 exit(1);
             }
-            *stack_entry = *stack_entry - running_process.current_instruction->int_param;
+            *stack_entry = *(stack_entry - running_process.current_instruction->int_param - 1);
             stack_entry++;
         }
         // 3  | [Space][Tab][LF] | Number | Slide n items off the stack, keeping the top item (v0.3) |
@@ -674,7 +674,7 @@ int ws_run(process running_process)
             for (register_1 = running_process.current_instruction->int_param; register_1 > 0; register_1--)
             {
                 stack_entry--;
-                if (stack_entry <= stack_base + 1)
+                if (stack_entry < stack_base + 1)
                 {
                     printf(ERR_STACK_UNDERFLOW);
                     exit(1);
@@ -913,11 +913,10 @@ int ws_run(process running_process)
             }
             else if (current_heap_entry->entry_id > *(stack_entry - 1))
             {
-                do
+                while (current_heap_entry->entry_id > *(stack_entry - 1) && current_heap_entry->prev_entry != NULL)
                 {
                     current_heap_entry = current_heap_entry->prev_entry;
                 }
-                while (current_heap_entry->entry_id > *(stack_entry - 1) && current_heap_entry->prev_entry != NULL);
                 if (current_heap_entry->entry_id < *(stack_entry - 1))
                 {
                     current_heap_entry->next_entry->prev_entry = calloc(1, sizeof(heap_entry));
@@ -926,7 +925,7 @@ int ws_run(process running_process)
                     current_heap_entry->next_entry = current_heap_entry->next_entry->prev_entry;
                     current_heap_entry = current_heap_entry->next_entry;
                 }
-                else if (current_heap_entry->prev_entry == NULL && current_heap_entry->entry_id != *(stack_entry - 2))
+                else if (current_heap_entry->prev_entry == NULL && current_heap_entry->entry_id != *(stack_entry - 1))
                 {
                     current_heap_entry->prev_entry = calloc(1, sizeof(heap_entry));
                     current_heap_entry->prev_entry->next_entry = current_heap_entry;
@@ -935,11 +934,10 @@ int ws_run(process running_process)
             }
             else if (current_heap_entry->entry_id < *(stack_entry - 1))
             {
-                do
+                while (current_heap_entry->entry_id < *(stack_entry - 1) && current_heap_entry->next_entry != NULL)
                 {
                     current_heap_entry = current_heap_entry->next_entry;
                 }
-                while (current_heap_entry->entry_id < *(stack_entry - 1) && current_heap_entry->next_entry != NULL);
                 if (current_heap_entry->entry_id > *(stack_entry - 1))
                 {
                     current_heap_entry->prev_entry->next_entry = calloc(1, sizeof(heap_entry));
@@ -955,7 +953,8 @@ int ws_run(process running_process)
                     current_heap_entry = current_heap_entry->next_entry;
                 }
             }
-            scanf("%lc", &(current_heap_entry->heap_value));
+            current_heap_entry->entry_id = *(stack_entry - 1);
+            scanf("%1lc", &(current_heap_entry->heap_value));
             stack_entry--;
         }
         // 17 | [Tab][LF][Tab][Tab] | - | Read a number and place it in the location given by the top of the stack |
@@ -974,11 +973,10 @@ int ws_run(process running_process)
             }
             else if (current_heap_entry->entry_id > *(stack_entry - 1))
             {
-                do
+                while (current_heap_entry->entry_id > *(stack_entry - 1) && current_heap_entry->prev_entry != NULL)
                 {
                     current_heap_entry = current_heap_entry->prev_entry;
                 }
-                while (current_heap_entry->entry_id > *(stack_entry - 1) && current_heap_entry->prev_entry != NULL);
                 if (current_heap_entry->entry_id < *(stack_entry - 1))
                 {
                     current_heap_entry->next_entry->prev_entry = calloc(1, sizeof(heap_entry));
@@ -996,11 +994,10 @@ int ws_run(process running_process)
             }
             else if (current_heap_entry->entry_id < *(stack_entry - 1))
             {
-                do
+                while (current_heap_entry->entry_id < *(stack_entry - 1) && current_heap_entry->next_entry != NULL)
                 {
                     current_heap_entry = current_heap_entry->next_entry;
                 }
-                while (current_heap_entry->entry_id < *(stack_entry - 1) && current_heap_entry->next_entry != NULL);
                 if (current_heap_entry->entry_id > *(stack_entry - 1))
                 {
                     current_heap_entry->prev_entry->next_entry = calloc(1, sizeof(heap_entry));
