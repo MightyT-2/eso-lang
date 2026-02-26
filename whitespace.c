@@ -5,6 +5,7 @@
 // TODO: proper error handling
 // TODO: documentation
 // TODO: memory management
+// TODO: implement GNU Multiple Precision
 
 #include <stdio.h>
 #include <string.h>
@@ -12,6 +13,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <gmp.h>
 
 #define NOCOLOR                  "\x1b[0m"
 #define RED_FORE                 "\x1b[31m"
@@ -46,7 +48,7 @@ typedef struct strchar
 typedef struct instruction
 {
     uint8_t            instruct_num;
-    int32_t            int_param;
+    mpz_t              int_param;
     char               *label_param;
     struct instruction *next_instruct;
 } instruction;
@@ -71,7 +73,7 @@ typedef struct process
 
 typedef struct heap_entry
 {
-    int32_t           heap_value;
+    mpz_t             heap_value;
     uint32_t          entry_id;
     struct heap_entry *next_entry,
                       *prev_entry;
@@ -152,9 +154,8 @@ char *get_label(FILE *source_file)
     return return_label;
 }
 
-int32_t get_int(FILE *source_file)
+void get_int(FILE *source_file, mpz_t return_int)
 {
-    int32_t return_int = 0;
     int     digit_count = 0;
     char    next_char,
             sign_char;
@@ -174,8 +175,8 @@ int32_t get_int(FILE *source_file)
     {
         if (next_char == ' ')
         {
-            return_int = return_int << 1;
-            if (return_int != 0)
+            mpz_mul(return_int, return_int, 2);
+            if (mpz_cmp_si(return_int, 0))
             {
                 digit_count++;
             }
@@ -183,8 +184,8 @@ int32_t get_int(FILE *source_file)
         
         else if (next_char == '\t')
         {
-            return_int = return_int << 1;
-            return_int++;
+            mpz_mul_si(return_int, return_int, 2);
+            mpz_add_ui(return_int, return_int, 1);
             digit_count++;
         }
         
@@ -193,16 +194,11 @@ int32_t get_int(FILE *source_file)
             printf("Exiting. Invalid integer.\n");
             exit(1);
         }
-        if (digit_count > 64)
-        {
-            printf("Exiting. Integer too large.\n");
-            exit(1);
-        }
     }
 
     if (sign_char == '\t')
     {
-        return_int = -return_int;
+        mpz_neg(return_int, return_int);
     }
 
     return return_int;
@@ -313,7 +309,7 @@ int ws_load(char *file_location, process *dispatch_proc)
             if ((next_char = find_next_token(source_file)) == ' ')
             {
                 current_instruct->instruct_num = 1;
-                current_instruct->int_param = get_int(source_file);
+                current_instruct->int_param = get_int(source_file); //change
             }
             
             else if (next_char == '\t')
@@ -322,7 +318,7 @@ int ws_load(char *file_location, process *dispatch_proc)
                 if ((next_char = find_next_token(source_file)) == ' ')
                 {
                     current_instruct->instruct_num = 2;
-                    current_instruct->int_param = get_int(source_file);
+                    current_instruct->int_param = get_int(source_file); //change
                 }
                 
                 // 3  | [Space][Tab][LF] | Number | Slide n items off the stack, keeping the top item (v0.3) |
@@ -628,32 +624,39 @@ int ws_load(char *file_location, process *dispatch_proc)
 
 int ws_run(process running_process)
 {
-    int32_t     *stack_base,
+    mpz_t       *stack_base,
                 *stack_entry;
     instruction **call_stack_base,
                 **call_stack_entry;
     heap_entry  *first_heap_entry = NULL,
                 *current_heap_entry = NULL;
-    int32_t     register_1,
+    mpz_t       register_1,
                 register_2;
     int         debug_int = 0;
 
-    if ((stack_base = (int32_t *)malloc(STACK_SIZE * sizeof(int32_t))) == NULL)
+    // Allocate the stack
+    if ((stack_base = (mpz_t *)calloc(STACK_SIZE, sizeof(mpz_t))) == NULL)
     {
         printf("Exiting. Not enough memory for stack allocation\n");
         return 1;
     }
     stack_entry = stack_base;
+
+    // Allocate the call stack
     if ((call_stack_base = (instruction **)malloc(STACK_SIZE * sizeof(instruction **))) == NULL)
     {
         printf("Exiting. Not enough memory for call stack allocation\n");
         return 1;
     }
     call_stack_entry = call_stack_base;
+    mpz_init(register_1);
+    mpz_init(register_2);
     
-    // 23 | [LF][LF][LF] | - | End the program |
-    while (running_process.curr_instruct->instruct_num != 23)
+    // Run the program
+    while (running_process.curr_instruct->instruct_num != 23) // 23 | [LF][LF][LF] | - | End the program |
     {
+
+        // Debug messages
         // printf("%d\n", debug_int++);
         // printf("here %d\n", running_process.curr_instruct->instruct_num);
         // debug_stack_dump(stack_base, stack_entry);
@@ -665,21 +668,25 @@ int ws_run(process running_process)
             printf("Exiting. Invalid Instruction");
             return 1;
         }
-        // 1  | [Space][Space] | Number | Push a number to the stack |
-        if (running_process.curr_instruct->instruct_num == 1)
+
+
+        // Push to the stack
+        if (running_process.curr_instruct->instruct_num == 1) // 1  | [Space][Space] | Number | Push a number to the stack |
         {
             if (stack_entry - stack_base > STACK_SIZE)
             {
                 printf(ERR_STACK_OVERFLOW);
                 return 1;
             }
-            *stack_entry = running_process.curr_instruct->int_param;
+            mpz_init(*stack_entry);
+            mpz_set(*stack_entry, running_process.curr_instruct->int_param);
             stack_entry++;
         }
         // 2  | [Space][Tab][Space] | Number | Copy the nth item on the stack (given by the argument) onto the top of the stack (v0.3) |
         else if (running_process.curr_instruct->instruct_num == 2)
         {
-            if (stack_entry < stack_base + running_process.curr_instruct->int_param)
+            mpz_add_ui(register_1, running_process.curr_instruct->int_param, stack_base);
+            if (stack_entry < stack_base + running_process.curr_instruct->int_param) //change
             {
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
@@ -689,21 +696,21 @@ int ws_run(process running_process)
                 printf(ERR_STACK_OVERFLOW);
                 return 1;
             }
-            *stack_entry = *(stack_entry - running_process.curr_instruct->int_param - 1);
+            *stack_entry = *(stack_entry - running_process.curr_instruct->int_param - 1); //change
             stack_entry++;
         }
         // 3  | [Space][Tab][LF] | Number | Slide n items off the stack, keeping the top item (v0.3) |
         else if (running_process.curr_instruct->instruct_num == 3)
         {
-            for (register_1 = running_process.curr_instruct->int_param; register_1 > 0; register_1--)
+            for (register_1 = running_process.curr_instruct->int_param; register_1 > 0; register_1--) //change
             {
                 stack_entry--;
-                if (stack_entry < stack_base + 1)
+                if (stack_entry < stack_base)
                 {
                     printf(ERR_STACK_UNDERFLOW);
                     return 1;
                 }
-                *(stack_entry - 1) = *stack_entry;
+                *(stack_entry - 1) = *stack_entry; //change
             }
         }
         // 4  | [Space][LF][Space] | - | Duplicate the top item on the stack |
@@ -719,7 +726,7 @@ int ws_run(process running_process)
                 printf(ERR_STACK_OVERFLOW);
                 return 1;
             }
-            *stack_entry = *(stack_entry - 1);
+            *stack_entry = *(stack_entry - 1); //change
             stack_entry++;
         }
         // 5  | [Space][LF][Tab] | - | Swap the top two items on the stack |
@@ -729,9 +736,9 @@ int ws_run(process running_process)
             {
                 printf(ERR_STACK_UNDERFLOW);
             }
-            register_1         = *(stack_entry - 1);
-            *(stack_entry - 1) = *(stack_entry - 2);
-            *(stack_entry - 2) = register_1;
+            register_1         = *(stack_entry - 1); //change
+            *(stack_entry - 1) = *(stack_entry - 2); //change
+            *(stack_entry - 2) = register_1; //change
         }
         // 6  | [Space][LF][LF] | - | Discard the top item on the stack |
         else if (running_process.curr_instruct->instruct_num == 6)
@@ -746,7 +753,7 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            *(stack_entry - 2) += *(stack_entry - 1);
+            *(stack_entry - 2) += *(stack_entry - 1); //change
             stack_entry--;
         }
         // 8  | [Tab][Space][Space][Tab] | - | Subtraction |
@@ -757,7 +764,7 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            *(stack_entry - 2) -= *(stack_entry - 1);
+            *(stack_entry - 2) -= *(stack_entry - 1); //change
             stack_entry--;
         }
         // 9  | [Tab][Space][Space][LF] | - | Multiplication |
@@ -768,7 +775,7 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            *(stack_entry - 2) *= *(stack_entry - 1);
+            *(stack_entry - 2) *= *(stack_entry - 1); //change
             stack_entry--;
         }
         // 10 | [Tab][Space][Tab][Space] | - | Integer Division |
@@ -779,7 +786,7 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            *(stack_entry - 2) /= *(stack_entry - 1);
+            *(stack_entry - 2) /= *(stack_entry - 1); //change
             stack_entry--;
         }
         // 11 | [Tab][Space][Tab][Tab] | - | Modulo |
@@ -790,18 +797,18 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            *(stack_entry - 2) %= *(stack_entry - 1);
+            *(stack_entry - 2) %= *(stack_entry - 1); //change
             stack_entry--;
         }
         // 12 | [Tab][Tab][Space] | - | Store |
-        else if (running_process.curr_instruct->instruct_num == 12)
+        else if (running_process.curr_instruct->instruct_num == 12) //change
         {
             if (stack_entry < stack_base + 2)
             {
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            if (first_heap_entry == NULL)
+            if (first_heap_entry == NULL) //change
             {
                 first_heap_entry = calloc(1, sizeof(heap_entry));
                 current_heap_entry = first_heap_entry;
@@ -862,7 +869,7 @@ int ws_run(process running_process)
             stack_entry -= 2;
         }
         // 13 | [Tab][Tab][Tab] | - | Retrieve |
-        else if (running_process.curr_instruct->instruct_num == 13)
+        else if (running_process.curr_instruct->instruct_num == 13) //change
         {
             if (stack_entry < stack_base + 1)
             {
@@ -907,7 +914,7 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            printf("%lc", *(stack_entry - 1));
+            printf("%lc", *(stack_entry - 1)); //change
             stack_entry--;
         }
         // 15 | [Tab][LF][Space][Tab] | - | Output the number at the top of the stack |
@@ -918,11 +925,11 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            printf("%d", *(stack_entry - 1));
+            printf("%d", *(stack_entry - 1)); //change
             stack_entry--;
         }
         // 16 | [Tab][LF][Tab][Space] | - | Read a character and place it in the location given by the top of the stack |
-        else if (running_process.curr_instruct->instruct_num == 16)
+        else if (running_process.curr_instruct->instruct_num == 16) //change
         {
             if (stack_entry < stack_base + 1)
             {
@@ -982,7 +989,7 @@ int ws_run(process running_process)
             stack_entry--;
         }
         // 17 | [Tab][LF][Tab][Tab] | - | Read a number and place it in the location given by the top of the stack |
-        else if (running_process.curr_instruct->instruct_num == 17)
+        else if (running_process.curr_instruct->instruct_num == 17) //change
         {
             // debug_stack_dump(stack_base, stack_entry);
             if (stack_entry < stack_base + 1)
@@ -1122,7 +1129,7 @@ int ws_run(process running_process)
                 printf(ERR_STACK_OVERFLOW);
                 return 1;
             }
-            if (*(stack_entry - 1) == 0)
+            if (*(stack_entry - 1) == 0) //change
             {
                 running_process.curr_instruct = running_process.curr_label->instruct_loc;
             }
@@ -1166,7 +1173,7 @@ int ws_run(process running_process)
                 printf(ERR_STACK_OVERFLOW);
                 return 1;
             }
-            if (*(stack_entry - 1) < 0)
+            if (*(stack_entry - 1) < 0) //change
             {
                 running_process.curr_instruct = running_process.curr_label->instruct_loc;
             }
