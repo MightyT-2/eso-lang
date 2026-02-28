@@ -32,6 +32,7 @@
 #define ERR_CALL_STACK_OVERFLOW  "Exiting. Stack overflow.\n"
 #define ERR_CALL_STACK_UNDERFLOW "Exiting. Stack underflow.\n"
 #define ERR_INVAL_INSTRUCT       "Exiting. Invalid instruction.\n"
+#define ERR_DIV_ZERO             "Exiting. Divide by zero.\n"
 #define HERE                     "here\n"
 
 /**
@@ -665,7 +666,8 @@ int ws_run(process running_process)
             printf("Exiting. Invalid Instruction");
             return 1;
         }
-        // 1  | [Space][Space] | Number | Push a number to the stack |
+
+        // Push a number to the stack
         if (running_process.curr_instruct->instruct_num == 1)
         {
             if (stack_entry - stack_base > STACK_SIZE)
@@ -676,7 +678,8 @@ int ws_run(process running_process)
             *stack_entry = running_process.curr_instruct->int_param;
             stack_entry++;
         }
-        // 2  | [Space][Tab][Space] | Number | Copy the nth item on the stack (given by the argument) onto the top of the stack (v0.3) |
+
+        // Copy the nth item on the stack
         else if (running_process.curr_instruct->instruct_num == 2)
         {
             if (stack_entry < stack_base + running_process.curr_instruct->int_param)
@@ -684,29 +687,26 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            if (stack_entry - stack_base > STACK_SIZE)
-            {
-                printf(ERR_STACK_OVERFLOW);
-                return 1;
-            }
-            *stack_entry = *(stack_entry - running_process.curr_instruct->int_param - 1);
-            stack_entry++;
+            *(stack_entry - 1) = *(stack_entry - running_process.curr_instruct->int_param - 1);
         }
-        // 3  | [Space][Tab][LF] | Number | Slide n items off the stack, keeping the top item (v0.3) |
+
+        // Slide n items of the stack while keeping the top item
         else if (running_process.curr_instruct->instruct_num == 3)
         {
+            if (stack_entry < stack_base + running_process.curr_instruct->int_param)
+            {
+                printf(ERR_STACK_UNDERFLOW);
+                return 1;
+            }
             for (register_1 = running_process.curr_instruct->int_param; register_1 > 0; register_1--)
             {
+                *stack_entry = 0;
                 stack_entry--;
-                if (stack_entry < stack_base + 1)
-                {
-                    printf(ERR_STACK_UNDERFLOW);
-                    return 1;
-                }
                 *(stack_entry - 1) = *stack_entry;
             }
         }
-        // 4  | [Space][LF][Space] | - | Duplicate the top item on the stack |
+
+        // Duplicate the top stack item
         else if (running_process.curr_instruct->instruct_num == 4)
         {
             if (stack_entry < stack_base + 1)
@@ -722,7 +722,8 @@ int ws_run(process running_process)
             *stack_entry = *(stack_entry - 1);
             stack_entry++;
         }
-        // 5  | [Space][LF][Tab] | - | Swap the top two items on the stack |
+
+        // Swap the top two items on the stack
         else if (running_process.curr_instruct->instruct_num == 5)
         {
             if (stack_entry < stack_base + 2)
@@ -733,12 +734,14 @@ int ws_run(process running_process)
             *(stack_entry - 1) = *(stack_entry - 2);
             *(stack_entry - 2) = register_1;
         }
-        // 6  | [Space][LF][LF] | - | Discard the top item on the stack |
+
+        // Discard the top item off the stack
         else if (running_process.curr_instruct->instruct_num == 6)
         {
             stack_entry--;
         }
-        // 7  | [Tab][Space][Space][Space] | - | Addition |
+
+        // Perform addition with the top two items on the stack
         else if (running_process.curr_instruct->instruct_num == 7)
         {
             if (stack_entry < stack_base + 2)
@@ -749,7 +752,8 @@ int ws_run(process running_process)
             *(stack_entry - 2) += *(stack_entry - 1);
             stack_entry--;
         }
-        // 8  | [Tab][Space][Space][Tab] | - | Subtraction |
+
+        // Perform subtraction with the top two items on the stack
         else if (running_process.curr_instruct->instruct_num == 8)
         {
             if (stack_entry < stack_base + 2)
@@ -760,7 +764,8 @@ int ws_run(process running_process)
             *(stack_entry - 2) -= *(stack_entry - 1);
             stack_entry--;
         }
-        // 9  | [Tab][Space][Space][LF] | - | Multiplication |
+
+        // Perform multiplication with the top two items on the stack
         else if (running_process.curr_instruct->instruct_num == 9)
         {
             if (stack_entry < stack_base + 2)
@@ -771,7 +776,8 @@ int ws_run(process running_process)
             *(stack_entry - 2) *= *(stack_entry - 1);
             stack_entry--;
         }
-        // 10 | [Tab][Space][Tab][Space] | - | Integer Division |
+
+        // Perform integer division with the top two items on the stack
         else if (running_process.curr_instruct->instruct_num == 10)
         {
             if (stack_entry < stack_base + 2)
@@ -779,10 +785,16 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
+            if (*(stack_entry - 1) == 0)
+            {
+                printf(ERR_DIV_ZERO);
+                return 1;
+            }
             *(stack_entry - 2) /= *(stack_entry - 1);
             stack_entry--;
         }
-        // 11 | [Tab][Space][Tab][Tab] | - | Modulo |
+
+        // Perform modulo with the top two items on the stack
         else if (running_process.curr_instruct->instruct_num == 11)
         {
             if (stack_entry < stack_base + 2)
@@ -790,10 +802,16 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
+            if (*(stack_entry - 1) == 0)
+            {
+                printf(ERR_DIV_ZERO);
+                return 1;
+            }
             *(stack_entry - 2) %= *(stack_entry - 1);
             stack_entry--;
         }
-        // 12 | [Tab][Tab][Space] | - | Store |
+
+        // Store the top item on the stack in a heap entry
         else if (running_process.curr_instruct->instruct_num == 12)
         {
             if (stack_entry < stack_base + 2)
@@ -861,7 +879,8 @@ int ws_run(process running_process)
             // printf("Current Heap Entry: %d, Stack Entry - 1: %d, Stack Entry - 2: %d\n", current_heap_entry->)
             stack_entry -= 2;
         }
-        // 13 | [Tab][Tab][Tab] | - | Retrieve |
+
+        // Retrieve an item from a heap entry
         else if (running_process.curr_instruct->instruct_num == 13)
         {
             if (stack_entry < stack_base + 1)
@@ -899,7 +918,8 @@ int ws_run(process running_process)
             *(stack_entry - 1) = current_heap_entry->heap_value;
 
         }
-        // 14 | [Tab][LF][Space][Space] | - | Output the character at the top of the stack |
+        
+        // Output the character at the top of the stack
         else if (running_process.curr_instruct->instruct_num == 14)
         {
             if (stack_entry < stack_base + 1)
@@ -910,7 +930,8 @@ int ws_run(process running_process)
             printf("%lc", *(stack_entry - 1));
             stack_entry--;
         }
-        // 15 | [Tab][LF][Space][Tab] | - | Output the number at the top of the stack |
+
+        // Output the integer at the top of the stack
         else if (running_process.curr_instruct->instruct_num == 15)
         {
             if (stack_entry < stack_base + 1)
@@ -921,7 +942,8 @@ int ws_run(process running_process)
             printf("%d", *(stack_entry - 1));
             stack_entry--;
         }
-        // 16 | [Tab][LF][Tab][Space] | - | Read a character and place it in the location given by the top of the stack |
+        
+        // Read a character and place it in a heap entry
         else if (running_process.curr_instruct->instruct_num == 16)
         {
             if (stack_entry < stack_base + 1)
@@ -981,7 +1003,8 @@ int ws_run(process running_process)
             scanf("%1lc", &(current_heap_entry->heap_value));
             stack_entry--;
         }
-        // 17 | [Tab][LF][Tab][Tab] | - | Read a number and place it in the location given by the top of the stack |
+        
+        // ead an integer and place it in a heap entry
         else if (running_process.curr_instruct->instruct_num == 17)
         {
             // debug_stack_dump(stack_base, stack_entry);
@@ -1042,7 +1065,7 @@ int ws_run(process running_process)
             stack_entry--;
         }
         
-        // 18 | [LF][Space][Tab] | Label | Call a subroutine |
+        // Call a subroutine
         if (running_process.curr_instruct->instruct_num == 18)
         {
             if (running_process.first_label == NULL)
@@ -1069,7 +1092,8 @@ int ws_run(process running_process)
             call_stack_entry++;
             running_process.curr_instruct = running_process.curr_label->instruct_loc;
         }
-        // 19 | [LF][Space][LF] | Label | Jump unconditionally to a label |
+        
+        // Jump to a label unconditionally
         else if (running_process.curr_instruct->instruct_num == 19)
         {
             if (running_process.first_label == NULL)
@@ -1094,7 +1118,8 @@ int ws_run(process running_process)
             }
             running_process.curr_instruct = running_process.curr_label->instruct_loc;
         }
-        // 20 | [LF][Tab][Space] | Label | Jump to a label if the top of the stack is zero |
+        
+        // Jump to a label if the top of the stack is zero
         else if (running_process.curr_instruct->instruct_num == 20)
         {
             if (stack_entry < stack_base + 1)
@@ -1137,7 +1162,8 @@ int ws_run(process running_process)
             }
             stack_entry--;
         }
-        // 21 | [LF][Tab][Tab] | Label | Jump to a label if the top of the stack is negative |
+        
+        // Jump to a label if the top of the stack is negative
         else if (running_process.curr_instruct->instruct_num == 21)
         {
             // debug_stack_dump(stack_base, stack_entry);
@@ -1181,7 +1207,8 @@ int ws_run(process running_process)
             }
             stack_entry--;
         }
-        // 22 | [LF][Tab][LF] | - | End a subroutine and transfer control back to the caller |
+        
+        // Return from a subroutine
         else if (running_process.curr_instruct->instruct_num == 22)
         {
             if (call_stack_entry < call_stack_base + 1)
@@ -1198,6 +1225,8 @@ int ws_run(process running_process)
             }
             running_process.curr_instruct = running_process.curr_instruct->next_instruct;
         }
+        
+        // Error handling
         else
         {
             if (running_process.curr_instruct->next_instruct == NULL)
