@@ -61,7 +61,14 @@ typedef struct label
                  *prev_label;
 } label;
 
-// TODO: add stack and heap pointers
+typedef struct heap_entry
+{
+    int64_t           heap_value;
+    uint64_t          entry_id;
+    struct heap_entry *next_entry,
+    *prev_entry;
+} heap_entry;
+
 typedef struct process
 {
     instruction *first_instruct,
@@ -71,16 +78,8 @@ typedef struct process
                 *curr_label;
     int64_t     *stack_base,
                 *stack_entry;
-    heap_entry  *current_heap_entry;
+    heap_entry  *curr_heap_entry;
 } process;
-
-typedef struct heap_entry
-{
-    int64_t           heap_value;
-    uint64_t          entry_id;
-    struct heap_entry *next_entry,
-                      *prev_entry;
-} heap_entry;
 
 int ws_shell()
 {
@@ -232,7 +231,7 @@ void debug_stack_dump(int64_t *start_stack, int64_t *end_stack)
     printf("Stack Dump:\n");
     while (cur_stack != end_stack)
     {
-        printf("%05ld: %d\n", cur_stack - start_stack, *cur_stack);
+        printf("%05ld: %ld\n", cur_stack - start_stack, *cur_stack);
         cur_stack++;
     }
     return;
@@ -251,10 +250,10 @@ void debug_heap_dump(heap_entry *cur_heap_entry)
     }
     while (cur_heap_entry->next_entry != NULL)
     {
-        printf("%05d: %d\n", cur_heap_entry->entry_id, cur_heap_entry->heap_value);
+        printf("%05ld: %ld\n", cur_heap_entry->entry_id, cur_heap_entry->heap_value);
         cur_heap_entry = cur_heap_entry->next_entry;
     }
-    printf("%05d: %d\n", cur_heap_entry->entry_id, cur_heap_entry->heap_value);
+    printf("%05ld: %ld\n", cur_heap_entry->entry_id, cur_heap_entry->heap_value);
     return;
 }
 
@@ -662,7 +661,7 @@ int ws_run(process running_process)
         // printf("%d\n", debug_int++);
         // printf("here %d\n", running_process.curr_instruct->instruct_num);
         // printf("Call Stack Dump:\nLength: %ld\n", call_stack_entry - call_stack_base);
-        // debug_heap_dump(running_process.current_heap_entry);
+        // debug_heap_dump(running_process.curr_heap_entry);
         // debug_stack_dump(running_process.stack_base, running_process.stack_entry);
         // printf("Current instruction: %2d, Int param: %d\n", running_process.curr_instruct->instruct_num, running_process.curr_instruct->int_param);
         // debug_step();
@@ -825,63 +824,63 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            if (running_process.current_heap_entry == NULL)
+            if (running_process.curr_heap_entry == NULL)
             {
-                running_process.current_heap_entry = calloc(1, sizeof(heap_entry));
-                running_process.current_heap_entry->entry_id = *(running_process.stack_entry - 2);
+                running_process.curr_heap_entry = calloc(1, sizeof(heap_entry));
+                running_process.curr_heap_entry->entry_id = *(running_process.stack_entry - 2);
             }
-            else if (running_process.current_heap_entry->entry_id > *(running_process.stack_entry - 2))
+            else if (running_process.curr_heap_entry->entry_id > *(running_process.stack_entry - 2))
             {
-                while (running_process.current_heap_entry->entry_id > *(running_process.stack_entry - 2) && running_process.current_heap_entry->prev_entry != NULL)
+                while (running_process.curr_heap_entry->entry_id > *(running_process.stack_entry - 2) && running_process.curr_heap_entry->prev_entry != NULL)
                 {
-                    running_process.current_heap_entry = running_process.current_heap_entry->prev_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->prev_entry;
                 }
-                if (running_process.current_heap_entry->entry_id < *(running_process.stack_entry - 2))
+                if (running_process.curr_heap_entry->entry_id < *(running_process.stack_entry - 2))
                 {
                     // printf("Middle >: %d\n", *(running_process.stack_entry - 2));
-                    running_process.current_heap_entry->next_entry->prev_entry = calloc(1, sizeof(heap_entry));
-                    running_process.current_heap_entry->next_entry->prev_entry->prev_entry = running_process.current_heap_entry;
-                    running_process.current_heap_entry->next_entry->prev_entry->next_entry = running_process.current_heap_entry->next_entry;
-                    running_process.current_heap_entry->next_entry = running_process.current_heap_entry->next_entry->prev_entry;
-                    running_process.current_heap_entry = running_process.current_heap_entry->next_entry;
-                    running_process.current_heap_entry->entry_id = *(running_process.stack_entry - 2);
+                    running_process.curr_heap_entry->next_entry->prev_entry = calloc(1, sizeof(heap_entry));
+                    running_process.curr_heap_entry->next_entry->prev_entry->prev_entry = running_process.curr_heap_entry;
+                    running_process.curr_heap_entry->next_entry->prev_entry->next_entry = running_process.curr_heap_entry->next_entry;
+                    running_process.curr_heap_entry->next_entry = running_process.curr_heap_entry->next_entry->prev_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->next_entry;
+                    running_process.curr_heap_entry->entry_id = *(running_process.stack_entry - 2);
                 }
-                else if (running_process.current_heap_entry->prev_entry == NULL && running_process.current_heap_entry->entry_id != *(running_process.stack_entry - 2))
+                else if (running_process.curr_heap_entry->prev_entry == NULL && running_process.curr_heap_entry->entry_id != *(running_process.stack_entry - 2))
                 {
                     // printf("Begin: %d\n", *(running_process.stack_entry - 2));
-                    running_process.current_heap_entry->prev_entry = calloc(1, sizeof(heap_entry));
-                    running_process.current_heap_entry->prev_entry->next_entry = running_process.current_heap_entry;
-                    running_process.current_heap_entry = running_process.current_heap_entry->prev_entry;
-                    running_process.current_heap_entry->entry_id = *(running_process.stack_entry - 2);
+                    running_process.curr_heap_entry->prev_entry = calloc(1, sizeof(heap_entry));
+                    running_process.curr_heap_entry->prev_entry->next_entry = running_process.curr_heap_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->prev_entry;
+                    running_process.curr_heap_entry->entry_id = *(running_process.stack_entry - 2);
                 }
             }
-            else if (running_process.current_heap_entry->entry_id < *(running_process.stack_entry - 2))
+            else if (running_process.curr_heap_entry->entry_id < *(running_process.stack_entry - 2))
             {
-                while (running_process.current_heap_entry->entry_id < *(running_process.stack_entry - 2) && running_process.current_heap_entry->next_entry != NULL)
+                while (running_process.curr_heap_entry->entry_id < *(running_process.stack_entry - 2) && running_process.curr_heap_entry->next_entry != NULL)
                 {
-                    running_process.current_heap_entry = running_process.current_heap_entry->next_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->next_entry;
                 }
-                if (running_process.current_heap_entry->entry_id > *(running_process.stack_entry - 2))
+                if (running_process.curr_heap_entry->entry_id > *(running_process.stack_entry - 2))
                 {
                     // printf("Middle <: %d\n", *(running_process.stack_entry - 2));
-                    running_process.current_heap_entry->prev_entry->next_entry = calloc(1, sizeof(heap_entry));
-                    running_process.current_heap_entry->prev_entry->next_entry->next_entry = running_process.current_heap_entry;
-                    running_process.current_heap_entry->prev_entry->next_entry->prev_entry = running_process.current_heap_entry->prev_entry;
-                    running_process.current_heap_entry->prev_entry = running_process.current_heap_entry->prev_entry->next_entry;
-                    running_process.current_heap_entry = running_process.current_heap_entry->prev_entry;
-                    running_process.current_heap_entry->entry_id = *(running_process.stack_entry - 2);
+                    running_process.curr_heap_entry->prev_entry->next_entry = calloc(1, sizeof(heap_entry));
+                    running_process.curr_heap_entry->prev_entry->next_entry->next_entry = running_process.curr_heap_entry;
+                    running_process.curr_heap_entry->prev_entry->next_entry->prev_entry = running_process.curr_heap_entry->prev_entry;
+                    running_process.curr_heap_entry->prev_entry = running_process.curr_heap_entry->prev_entry->next_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->prev_entry;
+                    running_process.curr_heap_entry->entry_id = *(running_process.stack_entry - 2);
                 }
-                else if (running_process.current_heap_entry->next_entry == NULL && running_process.current_heap_entry->entry_id != *(running_process.stack_entry - 2))
+                else if (running_process.curr_heap_entry->next_entry == NULL && running_process.curr_heap_entry->entry_id != *(running_process.stack_entry - 2))
                 {
                     // printf("End: %d\n", *(running_process.stack_entry - 2));
-                    running_process.current_heap_entry->next_entry = calloc(1, sizeof(heap_entry));
-                    running_process.current_heap_entry->next_entry->prev_entry = running_process.current_heap_entry;
-                    running_process.current_heap_entry = running_process.current_heap_entry->next_entry;
-                    running_process.current_heap_entry->entry_id = *(running_process.stack_entry - 2);
+                    running_process.curr_heap_entry->next_entry = calloc(1, sizeof(heap_entry));
+                    running_process.curr_heap_entry->next_entry->prev_entry = running_process.curr_heap_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->next_entry;
+                    running_process.curr_heap_entry->entry_id = *(running_process.stack_entry - 2);
                 }
             }
-            running_process.current_heap_entry->heap_value = *(running_process.stack_entry - 1);
-            // printf("Current Heap Entry: %d, Stack Entry - 1: %d, Stack Entry - 2: %d\n", running_process.current_heap_entry->)
+            running_process.curr_heap_entry->heap_value = *(running_process.stack_entry - 1);
+            // printf("Current Heap Entry: %d, Stack Entry - 1: %d, Stack Entry - 2: %d\n", running_process.curr_heap_entry->)
             running_process.stack_entry -= 2;
         }
 
@@ -893,34 +892,34 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            if (running_process.current_heap_entry == NULL)
+            if (running_process.curr_heap_entry == NULL)
             {
                 printf("Exiting. No heap entrys.\n");
                 return 1;
             }
-            else if (running_process.current_heap_entry->entry_id > *(running_process.stack_entry - 1))
+            else if (running_process.curr_heap_entry->entry_id > *(running_process.stack_entry - 1))
             {
                 // printf("Test\n");
-                while (running_process.current_heap_entry->prev_entry != NULL && running_process.current_heap_entry->entry_id > *(running_process.stack_entry - 1))
+                while (running_process.curr_heap_entry->prev_entry != NULL && running_process.curr_heap_entry->entry_id > *(running_process.stack_entry - 1))
                 {
-                    running_process.current_heap_entry = running_process.current_heap_entry->prev_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->prev_entry;
                 }
             }
-            else if (running_process.current_heap_entry->entry_id < *(running_process.stack_entry - 1))
+            else if (running_process.curr_heap_entry->entry_id < *(running_process.stack_entry - 1))
             {
-                while (running_process.current_heap_entry->next_entry != NULL && running_process.current_heap_entry->entry_id < *(running_process.stack_entry - 1))
+                while (running_process.curr_heap_entry->next_entry != NULL && running_process.curr_heap_entry->entry_id < *(running_process.stack_entry - 1))
                 {
-                    running_process.current_heap_entry = running_process.current_heap_entry->next_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->next_entry;
                 }
             }
-            if (running_process.current_heap_entry->entry_id != *(running_process.stack_entry - 1))
+            if (running_process.curr_heap_entry->entry_id != *(running_process.stack_entry - 1))
             {
-                printf("Exiting. No heap entry %d.\n", *(running_process.stack_entry - 1));
+                printf("Exiting. No heap entry %ld.\n", *(running_process.stack_entry - 1));
                 debug_stack_dump(running_process.stack_base, running_process.stack_entry);
-                debug_heap_dump(running_process.current_heap_entry);
+                debug_heap_dump(running_process.curr_heap_entry);
                 return 1;
             }
-            *(running_process.stack_entry - 1) = running_process.current_heap_entry->heap_value;
+            *(running_process.stack_entry - 1) = running_process.curr_heap_entry->heap_value;
 
         }
         
@@ -932,7 +931,7 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            printf("%lc", *(running_process.stack_entry - 1));
+            printf("%lc", (int) *(running_process.stack_entry - 1));
             running_process.stack_entry--;
         }
         
@@ -944,7 +943,7 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            printf("%d", *(running_process.stack_entry - 1));
+            printf("%d", (int) *(running_process.stack_entry - 1));
             running_process.stack_entry--;
         }
         
@@ -956,55 +955,55 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            if (running_process.current_heap_entry == NULL)
+            if (running_process.curr_heap_entry == NULL)
             {
-                running_process.current_heap_entry = calloc(1, sizeof(heap_entry));
-                running_process.current_heap_entry->entry_id = *(running_process.stack_entry - 1);
+                running_process.curr_heap_entry = calloc(1, sizeof(heap_entry));
+                running_process.curr_heap_entry->entry_id = *(running_process.stack_entry - 1);
             }
-            else if (running_process.current_heap_entry->entry_id > *(running_process.stack_entry - 1))
+            else if (running_process.curr_heap_entry->entry_id > *(running_process.stack_entry - 1))
             {
-                while (running_process.current_heap_entry->entry_id > *(running_process.stack_entry - 1) && running_process.current_heap_entry->prev_entry != NULL)
+                while (running_process.curr_heap_entry->entry_id > *(running_process.stack_entry - 1) && running_process.curr_heap_entry->prev_entry != NULL)
                 {
-                    running_process.current_heap_entry = running_process.current_heap_entry->prev_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->prev_entry;
                 }
-                if (running_process.current_heap_entry->entry_id < *(running_process.stack_entry - 1))
+                if (running_process.curr_heap_entry->entry_id < *(running_process.stack_entry - 1))
                 {
-                    running_process.current_heap_entry->next_entry->prev_entry = calloc(1, sizeof(heap_entry));
-                    running_process.current_heap_entry->next_entry->prev_entry->prev_entry = running_process.current_heap_entry;
-                    running_process.current_heap_entry->next_entry->prev_entry->next_entry = running_process.current_heap_entry->next_entry;
-                    running_process.current_heap_entry->next_entry = running_process.current_heap_entry->next_entry->prev_entry;
-                    running_process.current_heap_entry = running_process.current_heap_entry->next_entry;
+                    running_process.curr_heap_entry->next_entry->prev_entry = calloc(1, sizeof(heap_entry));
+                    running_process.curr_heap_entry->next_entry->prev_entry->prev_entry = running_process.curr_heap_entry;
+                    running_process.curr_heap_entry->next_entry->prev_entry->next_entry = running_process.curr_heap_entry->next_entry;
+                    running_process.curr_heap_entry->next_entry = running_process.curr_heap_entry->next_entry->prev_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->next_entry;
                 }
-                else if (running_process.current_heap_entry->prev_entry == NULL && running_process.current_heap_entry->entry_id != *(running_process.stack_entry - 1))
+                else if (running_process.curr_heap_entry->prev_entry == NULL && running_process.curr_heap_entry->entry_id != *(running_process.stack_entry - 1))
                 {
-                    running_process.current_heap_entry->prev_entry = calloc(1, sizeof(heap_entry));
-                    running_process.current_heap_entry->prev_entry->next_entry = running_process.current_heap_entry;
-                    running_process.current_heap_entry = running_process.current_heap_entry->prev_entry;
-                }
-            }
-            else if (running_process.current_heap_entry->entry_id < *(running_process.stack_entry - 1))
-            {
-                while (running_process.current_heap_entry->entry_id < *(running_process.stack_entry - 1) && running_process.current_heap_entry->next_entry != NULL)
-                {
-                    running_process.current_heap_entry = running_process.current_heap_entry->next_entry;
-                }
-                if (running_process.current_heap_entry->entry_id > *(running_process.stack_entry - 1))
-                {
-                    running_process.current_heap_entry->prev_entry->next_entry = calloc(1, sizeof(heap_entry));
-                    running_process.current_heap_entry->prev_entry->next_entry->next_entry = running_process.current_heap_entry;
-                    running_process.current_heap_entry->prev_entry->next_entry->prev_entry = running_process.current_heap_entry->prev_entry;
-                    running_process.current_heap_entry->prev_entry = running_process.current_heap_entry->prev_entry->next_entry;
-                    running_process.current_heap_entry = running_process.current_heap_entry->prev_entry;
-                }
-                else if (running_process.current_heap_entry->next_entry == NULL && running_process.current_heap_entry->entry_id != *(running_process.stack_entry - 1))
-                {
-                    running_process.current_heap_entry->next_entry = calloc(1, sizeof(heap_entry));
-                    running_process.current_heap_entry->next_entry->prev_entry = running_process.current_heap_entry;
-                    running_process.current_heap_entry = running_process.current_heap_entry->next_entry;
+                    running_process.curr_heap_entry->prev_entry = calloc(1, sizeof(heap_entry));
+                    running_process.curr_heap_entry->prev_entry->next_entry = running_process.curr_heap_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->prev_entry;
                 }
             }
-            running_process.current_heap_entry->entry_id = *(running_process.stack_entry - 1);
-            scanf("%1lc", &(running_process.current_heap_entry->heap_value));
+            else if (running_process.curr_heap_entry->entry_id < *(running_process.stack_entry - 1))
+            {
+                while (running_process.curr_heap_entry->entry_id < *(running_process.stack_entry - 1) && running_process.curr_heap_entry->next_entry != NULL)
+                {
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->next_entry;
+                }
+                if (running_process.curr_heap_entry->entry_id > *(running_process.stack_entry - 1))
+                {
+                    running_process.curr_heap_entry->prev_entry->next_entry = calloc(1, sizeof(heap_entry));
+                    running_process.curr_heap_entry->prev_entry->next_entry->next_entry = running_process.curr_heap_entry;
+                    running_process.curr_heap_entry->prev_entry->next_entry->prev_entry = running_process.curr_heap_entry->prev_entry;
+                    running_process.curr_heap_entry->prev_entry = running_process.curr_heap_entry->prev_entry->next_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->prev_entry;
+                }
+                else if (running_process.curr_heap_entry->next_entry == NULL && running_process.curr_heap_entry->entry_id != *(running_process.stack_entry - 1))
+                {
+                    running_process.curr_heap_entry->next_entry = calloc(1, sizeof(heap_entry));
+                    running_process.curr_heap_entry->next_entry->prev_entry = running_process.curr_heap_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->next_entry;
+                }
+            }
+            running_process.curr_heap_entry->entry_id = *(running_process.stack_entry - 1);
+            scanf("%1lc", (int *)&(running_process.curr_heap_entry->heap_value));
             running_process.stack_entry--;
         }
         
@@ -1017,63 +1016,63 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            if (running_process.current_heap_entry == NULL)
+            if (running_process.curr_heap_entry == NULL)
             {
-                running_process.current_heap_entry = calloc(1, sizeof(heap_entry));
+                running_process.curr_heap_entry = calloc(1, sizeof(heap_entry));
             }
-            else if (running_process.current_heap_entry->entry_id > *(running_process.stack_entry - 1))
+            else if (running_process.curr_heap_entry->entry_id > *(running_process.stack_entry - 1))
             {
-                while (running_process.current_heap_entry->entry_id > *(running_process.stack_entry - 1) && running_process.current_heap_entry->prev_entry != NULL)
+                while (running_process.curr_heap_entry->entry_id > *(running_process.stack_entry - 1) && running_process.curr_heap_entry->prev_entry != NULL)
                 {
-                    running_process.current_heap_entry = running_process.current_heap_entry->prev_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->prev_entry;
                 }
-                if (running_process.current_heap_entry->entry_id < *(running_process.stack_entry - 1))
+                if (running_process.curr_heap_entry->entry_id < *(running_process.stack_entry - 1))
                 {
-                    running_process.current_heap_entry->next_entry->prev_entry = calloc(1, sizeof(heap_entry));
-                    running_process.current_heap_entry->next_entry->prev_entry->prev_entry = running_process.current_heap_entry;
-                    running_process.current_heap_entry->next_entry->prev_entry->next_entry = running_process.current_heap_entry->next_entry;
-                    running_process.current_heap_entry->next_entry = running_process.current_heap_entry->next_entry->prev_entry;
-                    running_process.current_heap_entry = running_process.current_heap_entry->next_entry;
-                    running_process.current_heap_entry->entry_id = *(running_process.stack_entry - 1);
+                    running_process.curr_heap_entry->next_entry->prev_entry = calloc(1, sizeof(heap_entry));
+                    running_process.curr_heap_entry->next_entry->prev_entry->prev_entry = running_process.curr_heap_entry;
+                    running_process.curr_heap_entry->next_entry->prev_entry->next_entry = running_process.curr_heap_entry->next_entry;
+                    running_process.curr_heap_entry->next_entry = running_process.curr_heap_entry->next_entry->prev_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->next_entry;
+                    running_process.curr_heap_entry->entry_id = *(running_process.stack_entry - 1);
                 }
-                else if (running_process.current_heap_entry->prev_entry == NULL && running_process.current_heap_entry->entry_id != *(running_process.stack_entry - 1))
+                else if (running_process.curr_heap_entry->prev_entry == NULL && running_process.curr_heap_entry->entry_id != *(running_process.stack_entry - 1))
                 {
-                    running_process.current_heap_entry->prev_entry = calloc(1, sizeof(heap_entry));
-                    running_process.current_heap_entry->prev_entry->next_entry = running_process.current_heap_entry;
-                    running_process.current_heap_entry = running_process.current_heap_entry->prev_entry;
-                    running_process.current_heap_entry->entry_id = *(running_process.stack_entry - 1);
+                    running_process.curr_heap_entry->prev_entry = calloc(1, sizeof(heap_entry));
+                    running_process.curr_heap_entry->prev_entry->next_entry = running_process.curr_heap_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->prev_entry;
+                    running_process.curr_heap_entry->entry_id = *(running_process.stack_entry - 1);
                 }
             }
-            else if (running_process.current_heap_entry->entry_id < *(running_process.stack_entry - 1))
+            else if (running_process.curr_heap_entry->entry_id < *(running_process.stack_entry - 1))
             {
-                while (running_process.current_heap_entry->entry_id < *(running_process.stack_entry - 1) && running_process.current_heap_entry->next_entry != NULL)
+                while (running_process.curr_heap_entry->entry_id < *(running_process.stack_entry - 1) && running_process.curr_heap_entry->next_entry != NULL)
                 {
-                    running_process.current_heap_entry = running_process.current_heap_entry->next_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->next_entry;
                 }
-                if (running_process.current_heap_entry->entry_id > *(running_process.stack_entry - 1))
+                if (running_process.curr_heap_entry->entry_id > *(running_process.stack_entry - 1))
                 {
-                    running_process.current_heap_entry->prev_entry->next_entry = calloc(1, sizeof(heap_entry));
-                    running_process.current_heap_entry->prev_entry->next_entry->next_entry = running_process.current_heap_entry;
-                    running_process.current_heap_entry->prev_entry->next_entry->prev_entry = running_process.current_heap_entry->prev_entry;
-                    running_process.current_heap_entry->prev_entry = running_process.current_heap_entry->prev_entry->next_entry;
-                    running_process.current_heap_entry = running_process.current_heap_entry->prev_entry;
-                    running_process.current_heap_entry->entry_id = *(running_process.stack_entry - 1);
+                    running_process.curr_heap_entry->prev_entry->next_entry = calloc(1, sizeof(heap_entry));
+                    running_process.curr_heap_entry->prev_entry->next_entry->next_entry = running_process.curr_heap_entry;
+                    running_process.curr_heap_entry->prev_entry->next_entry->prev_entry = running_process.curr_heap_entry->prev_entry;
+                    running_process.curr_heap_entry->prev_entry = running_process.curr_heap_entry->prev_entry->next_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->prev_entry;
+                    running_process.curr_heap_entry->entry_id = *(running_process.stack_entry - 1);
                 }
-                else if (running_process.current_heap_entry->next_entry == NULL && running_process.current_heap_entry->entry_id != *(running_process.stack_entry - 1))
+                else if (running_process.curr_heap_entry->next_entry == NULL && running_process.curr_heap_entry->entry_id != *(running_process.stack_entry - 1))
                 {
-                    running_process.current_heap_entry->next_entry = calloc(1, sizeof(heap_entry));
-                    running_process.current_heap_entry->next_entry->prev_entry = running_process.current_heap_entry;
-                    running_process.current_heap_entry = running_process.current_heap_entry->next_entry;
-                    running_process.current_heap_entry->entry_id = *(running_process.stack_entry - 1);
+                    running_process.curr_heap_entry->next_entry = calloc(1, sizeof(heap_entry));
+                    running_process.curr_heap_entry->next_entry->prev_entry = running_process.curr_heap_entry;
+                    running_process.curr_heap_entry = running_process.curr_heap_entry->next_entry;
+                    running_process.curr_heap_entry->entry_id = *(running_process.stack_entry - 1);
                 }
             }
             register_1 = 0;
             register_2 = 0;
-            scanf("%lc", &register_2);
+            scanf("%lc", (int *)&register_2);
             if (register_2 == '-')
             {
                 register_3 = 1;
-                scanf("%lc", &register_2);
+                scanf("%lc", (int *)&register_2);
             }
             else
             {
@@ -1089,14 +1088,14 @@ int ws_run(process running_process)
                 register_1 *= 10;
                 register_1 += register_2 - '0';
                 // printf("%d\n", register_1);
-                scanf("%lc", &register_2);
+                scanf("%lc", (int *)&register_2);
             }
             if (register_3)
             {
                 register_1 = -register_1;
                 // printf("%d\n", register_1);
             }
-            running_process.current_heap_entry->heap_value = register_1;
+            running_process.curr_heap_entry->heap_value = register_1;
             running_process.stack_entry--;
         }
         
@@ -1272,7 +1271,7 @@ int ws_run(process running_process)
             running_process.curr_instruct = running_process.curr_instruct->next_instruct;
         }
     }
-    // debug_heap_dump(running_process.current_heap_entry);
+    // debug_heap_dump(running_process.curr_heap_entry);
     return 0;
 }
 
