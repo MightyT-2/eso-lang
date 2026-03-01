@@ -48,7 +48,7 @@ typedef struct strchar
 typedef struct instruction
 {
     uint8_t            instruct_num;
-    int32_t            int_param;
+    int64_t            int_param;
     char               *label_param;
     struct instruction *next_instruct;
 } instruction;
@@ -69,14 +69,14 @@ typedef struct process
     label       *first_label,
                 *last_label,
                 *curr_label;
-    int32_t     *stack_base,
+    int64_t     *stack_base,
                 *stack_entry;
 } process;
 
 typedef struct heap_entry
 {
-    int32_t           heap_value;
-    uint32_t          entry_id;
+    int64_t           heap_value;
+    uint64_t          entry_id;
     struct heap_entry *next_entry,
                       *prev_entry;
 } heap_entry;
@@ -156,9 +156,9 @@ char *get_label(FILE *source_file)
     return return_label;
 }
 
-int32_t get_int(FILE *source_file)
+int64_t get_int(FILE *source_file)
 {
-    int32_t return_int = 0;
+    int64_t return_int = 0;
     int     digit_count = 0;
     char    next_char,
             sign_char;
@@ -224,9 +224,9 @@ void ws_terminate_process()
     return;
 }
 
-void debug_stack_dump(int32_t *start_stack, int32_t *end_stack)
+void debug_stack_dump(int64_t *start_stack, int64_t *end_stack)
 {
-    int32_t *cur_stack = start_stack;
+    int64_t *cur_stack = start_stack;
 
     printf("Stack Dump:\n");
     while (cur_stack != end_stack)
@@ -277,7 +277,7 @@ int ws_load(char *file_location, process *dispatch_proc)
                 *prev_label = NULL;
     int         is_label = 0;
 
-    if ((dispatch_proc->stack_base = (int32_t *)malloc(STACK_SIZE * sizeof(int32_t))) == NULL)
+    if ((dispatch_proc->stack_base = (int64_t *)malloc(STACK_SIZE * sizeof(int64_t))) == NULL)
     {
         printf("Exiting. Not enough memory for stack allocation\n");
         return 1;
@@ -643,7 +643,7 @@ int ws_run(process running_process)
                 **call_stack_entry;
     heap_entry  *first_heap_entry = NULL,
                 *current_heap_entry = NULL;
-    int32_t     register_1,
+    int64_t     register_1,
                 register_2,
                 register_3;
     int         debug_int = 0;
@@ -667,7 +667,7 @@ int ws_run(process running_process)
         // debug_stack_dump(running_process.stack_base, running_process.stack_entry);
         // printf("Current instruction: %2d, Int param: %d\n", running_process.curr_instruct->instruct_num, running_process.curr_instruct->int_param);
         // debug_step();
-        if (running_process.curr_instruct->instruct_num > 23 )
+        if (running_process.curr_instruct->instruct_num > 23)
         {
             printf("Exiting. Invalid Instruction");
             return 1;
@@ -693,7 +693,8 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            *(running_process.stack_entry - 1) = *(running_process.stack_entry - running_process.curr_instruct->int_param - 1);
+            *running_process.stack_entry = *(running_process.stack_entry - running_process.curr_instruct->int_param - 1);
+            running_process.stack_entry++;
         }
 
         // Slide n items of the stack while keeping the top item
@@ -945,7 +946,6 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            printf("here\n");
             printf("%d", *(running_process.stack_entry - 1));
             running_process.stack_entry--;
         }
