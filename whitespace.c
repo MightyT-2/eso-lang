@@ -66,7 +66,7 @@ typedef struct heap_entry
     int64_t           heap_value;
     uint64_t          entry_id;
     struct heap_entry *next_entry,
-    *prev_entry;
+                      *prev_entry;
 } heap_entry;
 
 typedef struct process
@@ -88,6 +88,11 @@ int ws_shell()
     // define but don't run if a return call stack is encountered
     process shell_process;
     printf("A Whitespace Shell\n");
+    // source_file = fopen(argv[2], "r");
+    // user_process = ws_init_proc();
+    // ws_load(source_file, &user_process);
+    // ws_run(user_process);
+    // ws_kill_proc(user_process);
 }
 
 char find_next_token(FILE *source_file)
@@ -103,10 +108,10 @@ char find_next_token(FILE *source_file)
 
 char *get_label(FILE *source_file)
 {
-    char *return_label,
-         *label_entry,
-         next_char;
-    int  char_count = 0;
+    char    *return_label,
+            *label_entry,
+            next_char;
+    int     char_count = 0;
     strchar *label_holder = NULL,
             *curr_char = NULL;
 
@@ -212,10 +217,60 @@ int64_t get_int(FILE *source_file)
     return return_int;
 }
 
-// TODO: write
-void ws_load_process()
+process ws_init_proc()
 {
-    return;
+    process new_proc;
+
+    if ((new_proc.stack_base = (int64_t *)malloc(STACK_SIZE * sizeof(int64_t))) == NULL)
+    {
+        printf("Exiting. Insufficient memory for stack allocation\n");
+        return new_proc;
+    }
+    new_proc.stack_entry = new_proc.stack_base;
+    new_proc.first_instruct = NULL;
+    new_proc.curr_instruct = NULL;
+    new_proc.first_label = NULL;
+    new_proc.last_label = NULL;
+    new_proc.curr_label = NULL;
+    new_proc.curr_heap_entry = NULL;
+
+    return new_proc;
+}
+
+void ws_kill_proc(process kill_proc)
+{
+    while (kill_proc.first_instruct != NULL)
+    {
+        kill_proc.curr_instruct = kill_proc.first_instruct->next_instruct;
+        free(kill_proc.first_instruct);
+        kill_proc.first_instruct = kill_proc.curr_instruct;
+    }
+    while (kill_proc.first_label != NULL)
+    {
+        kill_proc.curr_label = kill_proc.first_label->next_label;
+        free(kill_proc.first_label->label_id);
+        free(kill_proc.first_label);
+        kill_proc.first_label = kill_proc.curr_label;
+    }
+    kill_proc.last_label = NULL;
+    free(kill_proc.stack_base);
+    kill_proc.stack_base = NULL;
+    kill_proc.stack_entry = NULL;
+    if (kill_proc.curr_heap_entry != NULL)
+    {
+        while (kill_proc.curr_heap_entry->prev_entry != NULL)
+        {
+            kill_proc.curr_heap_entry = kill_proc.curr_heap_entry->prev_entry;
+        }
+        while (kill_proc.curr_heap_entry->next_entry != NULL)
+        {
+            kill_proc.curr_heap_entry = kill_proc.curr_heap_entry->next_entry;
+            free(kill_proc.curr_heap_entry->prev_entry);
+        }
+        free(kill_proc.curr_heap_entry);
+        kill_proc.curr_heap_entry = NULL;
+    }
+    heap_entry  *curr_heap_entry;
 }
 
 // TODO: write
@@ -266,25 +321,17 @@ void debug_step()
 
 // TODO: configure so that stdin can be used as well as a file pointer
 // TODO: configure errors to return a non-zero value instead of exiting
-int ws_load(char *file_location, process *dispatch_proc)
+int ws_load(FILE *source_file, process *dispatch_proc)
 {
     // printf("Run a program from a file\n");
-    FILE        *source_file;
+    ;
     char        next_char;
     instruction *current_instruct = NULL,
                 *previous_instruct = NULL;
     label       *curr_label = NULL,
                 *prev_label = NULL;
     int         is_label = 0;
-
-    if ((dispatch_proc->stack_base = (int64_t *)malloc(STACK_SIZE * sizeof(int64_t))) == NULL)
-    {
-        printf("Exiting. Not enough memory for stack allocation\n");
-        return 1;
-    }
-    dispatch_proc->stack_entry = dispatch_proc->stack_base;
     
-    source_file = fopen(file_location, "r");
     while ((next_char = find_next_token(source_file)) != EOF)
     {
         if (current_instruct == NULL && curr_label == NULL)
@@ -646,6 +693,8 @@ int ws_run(process running_process)
                 register_3;
     int         debug_int = 0;
 
+    // printf("here\n");
+
     if ((call_stack_base = (instruction **)malloc(STACK_SIZE * sizeof(instruction **))) == NULL)
     {
         printf("Exiting. Not enough memory for call stack allocation\n");
@@ -653,7 +702,7 @@ int ws_run(process running_process)
     }
     call_stack_entry = call_stack_base;
     
-    // 23 | [LF][LF][LF] | - | End the program |
+    // Loop until an end process instruction is reached
     while (running_process.curr_instruct->instruct_num != 23)
     {
 
@@ -663,7 +712,7 @@ int ws_run(process running_process)
         // printf("Call Stack Dump:\nLength: %ld\n", call_stack_entry - call_stack_base);
         // debug_heap_dump(running_process.curr_heap_entry);
         // debug_stack_dump(running_process.stack_base, running_process.stack_entry);
-        // printf("Current instruction: %2d, Int param: %d\n", running_process.curr_instruct->instruct_num, running_process.curr_instruct->int_param);
+        // printf("Current instruction: %2d, Int param: %ld\n", running_process.curr_instruct->instruct_num, running_process.curr_instruct->int_param);
         // debug_step();
         if (running_process.curr_instruct->instruct_num > 23)
         {
@@ -705,9 +754,9 @@ int ws_run(process running_process)
             }
             for (register_1 = running_process.curr_instruct->int_param; register_1 > 0; register_1--)
             {
-                *running_process.stack_entry = 0;
                 running_process.stack_entry--;
                 *(running_process.stack_entry - 1) = *running_process.stack_entry;
+                *running_process.stack_entry = 0;
             }
         }
 
@@ -744,6 +793,7 @@ int ws_run(process running_process)
         else if (running_process.curr_instruct->instruct_num == 6)
         {
             running_process.stack_entry--;
+            *running_process.stack_entry = 0;
         }
 
         // Perform addition with the top two items on the stack
@@ -756,6 +806,7 @@ int ws_run(process running_process)
             }
             *(running_process.stack_entry - 2) += *(running_process.stack_entry - 1);
             running_process.stack_entry--;
+            *running_process.stack_entry = 0;
         }
 
         // Perform subtraction with the top two items on the stack
@@ -768,6 +819,7 @@ int ws_run(process running_process)
             }
             *(running_process.stack_entry - 2) -= *(running_process.stack_entry - 1);
             running_process.stack_entry--;
+            *running_process.stack_entry = 0;
         }
 
         // Perform multiplication with the top two items on the stack
@@ -780,6 +832,7 @@ int ws_run(process running_process)
             }
             *(running_process.stack_entry - 2) *= *(running_process.stack_entry - 1);
             running_process.stack_entry--;
+            *running_process.stack_entry = 0;
         }
 
         // Perform integer division with the top two items on the stack
@@ -797,6 +850,7 @@ int ws_run(process running_process)
             }
             *(running_process.stack_entry - 2) /= *(running_process.stack_entry - 1);
             running_process.stack_entry--;
+            *running_process.stack_entry = 0;
         }
 
         // Perform modulo with the top two items on the stack
@@ -814,6 +868,7 @@ int ws_run(process running_process)
             }
             *(running_process.stack_entry - 2) %= *(running_process.stack_entry - 1);
             running_process.stack_entry--;
+            *running_process.stack_entry = 0;
         }
 
         // Store the top item on the stack in a heap entry
@@ -882,6 +937,8 @@ int ws_run(process running_process)
             running_process.curr_heap_entry->heap_value = *(running_process.stack_entry - 1);
             // printf("Current Heap Entry: %d, Stack Entry - 1: %d, Stack Entry - 2: %d\n", running_process.curr_heap_entry->)
             running_process.stack_entry -= 2;
+            *running_process.stack_entry = 0;
+            *(running_process.stack_entry + 1) = 0;
         }
 
         // Retrieve an item from a heap entry
@@ -933,6 +990,7 @@ int ws_run(process running_process)
             }
             printf("%lc", (int) *(running_process.stack_entry - 1));
             running_process.stack_entry--;
+            *running_process.stack_entry = 0;
         }
         
         // Output the integer at the top of the stack
@@ -945,6 +1003,7 @@ int ws_run(process running_process)
             }
             printf("%d", (int) *(running_process.stack_entry - 1));
             running_process.stack_entry--;
+            *running_process.stack_entry = 0;
         }
         
         // Read a character and place it in a heap entry
@@ -1005,6 +1064,7 @@ int ws_run(process running_process)
             running_process.curr_heap_entry->entry_id = *(running_process.stack_entry - 1);
             scanf("%1lc", (int *)&(running_process.curr_heap_entry->heap_value));
             running_process.stack_entry--;
+            *running_process.stack_entry = 0;
         }
         
         // Read an integer and place it in a heap entry
@@ -1097,6 +1157,7 @@ int ws_run(process running_process)
             }
             running_process.curr_heap_entry->heap_value = register_1;
             running_process.stack_entry--;
+            *running_process.stack_entry = 0;
         }
         
         // Call a subroutine
@@ -1252,9 +1313,10 @@ int ws_run(process running_process)
             }
             call_stack_entry--;
             running_process.curr_instruct = *call_stack_entry;
+            *call_stack_entry = 0;
             if (running_process.curr_instruct->next_instruct == NULL)
             {
-                printf("Exiting. Terminating program with no end instruction.\n");
+                printf("Exiting. Terminating process with no end instruction.\n");
                 return 1;
             }
             running_process.curr_instruct = running_process.curr_instruct->next_instruct;
@@ -1333,6 +1395,7 @@ int ws_echo(char* file_name)
 int main(int argc, char *argv[])
 {
     process user_process;
+    FILE    *source_file;
 
     /* Shell */
     if (argc == 1)
@@ -1343,8 +1406,11 @@ int main(int argc, char *argv[])
     /* Interpreter */
     else if (strcmp(argv[1], "run") == 0)
     {
-        ws_load(argv[2], &user_process);
+        source_file = fopen(argv[2], "r");
+        user_process = ws_init_proc();
+        ws_load(source_file, &user_process);
         ws_run(user_process);
+        ws_kill_proc(user_process);
     }
     
     /* Converter */
