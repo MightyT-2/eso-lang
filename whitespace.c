@@ -658,10 +658,13 @@ int ws_run(process running_process)
     // 23 | [LF][LF][LF] | - | End the program |
     while (running_process.curr_instruct->instruct_num != 23)
     {
+
+        // Debug Messages
         // printf("%d\n", debug_int++);
         // printf("here %d\n", running_process.curr_instruct->instruct_num);
-        // debug_stack_dump(running_process.stack_base, running_process.stack_entry);
         // printf("Call Stack Dump:\nLength: %ld\n", call_stack_entry - call_stack_base);
+        // debug_heap_dump(current_heap_entry);
+        // debug_stack_dump(running_process.stack_base, running_process.stack_entry);
         // printf("Current instruction: %2d, Int param: %d\n", running_process.curr_instruct->instruct_num, running_process.curr_instruct->int_param);
         // debug_step();
         if (running_process.curr_instruct->instruct_num > 23 )
@@ -942,7 +945,8 @@ int ws_run(process running_process)
                 printf(ERR_STACK_UNDERFLOW);
                 return 1;
             }
-            printf("%lc", *(running_process.stack_entry - 1));
+            printf("here\n");
+            printf("%d", *(running_process.stack_entry - 1));
             running_process.stack_entry--;
         }
         
@@ -1097,7 +1101,6 @@ int ws_run(process running_process)
                 // printf("%d\n", register_1);
             }
             current_heap_entry->heap_value = register_1;
-            printf("%d\n", current_heap_entry->heap_value);
             running_process.stack_entry--;
         }
         
