@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <sys/ioctl.h>
 
 #define NOCOLOR                  "\x1b[0m"
 #define RED_FORE                 "\x1b[31m"
@@ -26,14 +27,15 @@
 #define MAGENTA_BACK             "\x1b[45m"
 #define CYAN_BACK                "\x1b[46m"
 #define STACK_SIZE               1024
-#define ERR_STACK_OVERFLOW       "Exiting. Stack overflow.\n"
-#define ERR_STACK_UNDERFLOW      "Exiting. Stack underflow.\n"
-#define ERR_CALL_STACK_OVERFLOW  "Exiting. Stack overflow.\n"
-#define ERR_CALL_STACK_UNDERFLOW "Exiting. Stack underflow.\n"
-#define ERR_INVAL_INSTRUCT       "Exiting. Invalid instruction.\n"
-#define ERR_DIV_ZERO             "Exiting. Divide by zero.\n"
-#define ERR_NOT_NUMBER           "Exiting. Not a number.\n"
-#define HERE                     "here\n"
+#define ERR_STACK_OVERFLOW       "Exiting. Stack overflow.\r\n"
+#define ERR_STACK_UNDERFLOW      "Exiting. Stack underflow.\r\n"
+#define ERR_CALL_STACK_OVERFLOW  "Exiting. Stack overflow.\r\n"
+#define ERR_CALL_STACK_UNDERFLOW "Exiting. Stack underflow.\r\n"
+#define ERR_INVAL_INSTRUCT       "Exiting. Invalid instruction.\r\n"
+#define ERR_DIV_ZERO             "Exiting. Divide by zero.\r\n"
+#define ERR_NOT_NUMBER           "Exiting. Not a number.\r\n"
+#define ERR_NO_INTEGER           "Exiting. No integer parameter.\r\n"
+#define HERE                     "here\r\n"
 #define STD_INPUT                1
 
 typedef struct termios termios;
@@ -79,6 +81,15 @@ typedef struct process
                 *stack_entry;
     heap_entry  *curr_heap_entry;
 } process;
+
+typedef struct input_line
+{
+    strchar           *p_characters;
+    int               length;
+    struct input_line *p_next_line;
+} input_line;
+
+int exception = 0;
 
 /* Runs the whitespace shell */
 int ws_shell();
@@ -136,8 +147,13 @@ int main(int argc, char *argv[])
     {
         source_file = fopen(argv[2], "r");
         user_process = ws_init_proc();
-        ws_load(source_file, &user_process);
-        ws_run(user_process);
+        if (ws_load(source_file, &user_process) == 0)
+        {
+            if (ws_run(user_process) == 1)
+            {
+                exit(1);
+            }
+        }
         ws_kill_proc(user_process);
     }
     
@@ -213,6 +229,19 @@ char find_next_token(FILE *source_file)
     do
     {
         next_char = fgetc(source_file);
+        if (next_char == ' ')
+        {
+            printf("[Space]    ");
+        }
+        else if (next_char == '\t')
+        {
+            printf("[Tab]      ");
+        }
+        else if (next_char == '\n')
+        {
+            printf("[Line Feed]");
+        }
+        printf("Token Found: %d\r\n", next_char);
     } while(next_char != ' ' && next_char != '\t' && next_char != '\n' && next_char != EOF);
     
     return next_char;
@@ -234,7 +263,8 @@ int64_t get_int(FILE *source_file)
     if (sign_char == EOF)
     {
         printf("Exiting. No integer parameter.\n");
-        exit(1);
+        exception = 1;
+        return 1;
     }
     
     while ((next_char = find_next_token(source_file)) != '\n')
@@ -258,15 +288,17 @@ int64_t get_int(FILE *source_file)
         else if (next_char == EOF)
         {
             printf("Exiting. Invalid integer.\n");
-            exit(1);
+            exception = 1;
+            return 1;
         }
         if (digit_count > 64)
         {
             printf("Exiting. Integer too large.\n");
-            exit(1);
+            exception = 1;
+            return 1;
         }
     }
-
+    
     if (sign_char == '\t')
     {
         return_int = -return_int;
@@ -318,7 +350,7 @@ char *get_label(FILE *source_file)
         else if (next_char == EOF)
         {
             printf("Exiting. Invalid label.\n");
-            exit(1);
+            return NULL;
         }
         char_count++;
     }
@@ -475,10 +507,10 @@ int ws_load(FILE *source_file, process *dispatch_proc)
     label       *curr_label = NULL;
     int         is_label = 0;
     
-    printf("here\r\n");
     /* Loop until an end of file character is encountered */
     while ((next_char = find_next_token(source_file)) != EOF)
     {
+        printf("here\r\n");
 
         /* Create the instruction list */
         if (current_instruct == NULL && curr_label == NULL)
@@ -518,6 +550,11 @@ int ws_load(FILE *source_file, process *dispatch_proc)
             {
                 current_instruct->instruct_num = 1;
                 current_instruct->int_param = get_int(source_file);
+                if (exception == 1)
+                {
+                    exception = 0;
+                    return 1;
+                }
             }
             
             else if (next_char == '\t')
@@ -527,6 +564,11 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                 {
                     current_instruct->instruct_num = 2;
                     current_instruct->int_param = get_int(source_file);
+                    if (exception == 1)
+                    {
+                        exception = 0;
+                        return 1;
+                    }
                 }
                 
                 // 3  | [Space][Tab][LF] | Number | Slide n items off the stack, keeping the top item (v0.3) |
@@ -534,11 +576,17 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                 {
                     current_instruct->instruct_num = 3;
                     current_instruct->int_param = get_int(source_file);
+                    if (exception == 1)
+                    {
+                        exception = 0;
+                        return 1;
+                    }
                 }
                 
                 else
                 {
                     printf(ERR_INVAL_INSTRUCT);
+                    printf("stack\n");
                     return 1;
                 }
             }
@@ -566,6 +614,7 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                 else
                 {
                     printf(ERR_INVAL_INSTRUCT);
+                    printf("top of stack\n");
                     return 1;
                 }
             }
@@ -573,6 +622,7 @@ int ws_load(FILE *source_file, process *dispatch_proc)
             else
             {
                 printf(ERR_INVAL_INSTRUCT);
+                printf("stack 2\n");
                 return 1;
             }
         }
@@ -607,6 +657,7 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                     else
                     {
                         printf(ERR_INVAL_INSTRUCT);
+                        printf("arithmetic\n");
                         return 1;
                     }
                 }
@@ -628,6 +679,7 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                     else
                     {
                         printf(ERR_INVAL_INSTRUCT);
+                        printf("more arithmetic\n");
                         return 1;
                     }
                 }
@@ -635,6 +687,7 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                 else
                 {
                     printf(ERR_INVAL_INSTRUCT);
+                    printf("more aritmetic again\n");
                     return 1;
                 }
             }
@@ -657,6 +710,7 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                 else
                 {
                     printf(ERR_INVAL_INSTRUCT);
+                    printf("heap access\n");
                     return 1;
                 }
             }
@@ -682,6 +736,7 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                     else
                     {
                         printf(ERR_INVAL_INSTRUCT);
+                        printf("output\n");
                         return 1;
                     }
                 }
@@ -703,6 +758,7 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                     else
                     {
                         printf(ERR_INVAL_INSTRUCT);
+                        printf("input\n");
                         return 1;
                     }
                 }
@@ -710,6 +766,7 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                 else
                 {
                     printf(ERR_INVAL_INSTRUCT);
+                    printf("in out\n");
                     return 1;
                 }
             }
@@ -717,6 +774,7 @@ int ws_load(FILE *source_file, process *dispatch_proc)
             else
             {
                 printf(ERR_INVAL_INSTRUCT);
+                printf("Tab options\n");
                 return 1;
             }
         }
@@ -730,6 +788,10 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                 if ((next_char = find_next_token(source_file)) == ' ')
                 {
                     curr_label->label_id = get_label(source_file);
+                    if (curr_label->label_id == NULL)
+                    {
+                        return 1;
+                    }
                     is_label = 1;
                 }
                 
@@ -738,6 +800,10 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                 {
                     current_instruct->instruct_num = 18;
                     current_instruct->label_param = get_label(source_file);
+                    if (curr_label->label_id == NULL)
+                    {
+                        return 1;
+                    }
                 }
                 
                 // 19 | [LF][Space][LF] | Label | Jump unconditionally to a label |
@@ -745,11 +811,16 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                 {
                     current_instruct->instruct_num = 19;
                     current_instruct->label_param = get_label(source_file);
+                    if (curr_label->label_id == NULL)
+                    {
+                        return 1;
+                    }
                 }
                 
                 else
                 {
                     printf(ERR_INVAL_INSTRUCT);
+                    printf("jumps\n");
                     return 1;
                 }
                 
@@ -762,6 +833,10 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                 {
                     current_instruct->instruct_num = 20;
                     current_instruct->label_param = get_label(source_file);
+                    if (curr_label->label_id == NULL)
+                    {
+                        return 1;
+                    }
                 }
                 
                 // 21 | [LF][Tab][Tab] | Label | Jump to a label if the top of the stack is negative |
@@ -769,6 +844,10 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                 {
                     current_instruct->instruct_num = 21;
                     current_instruct->label_param = get_label(source_file);
+                    if (curr_label->label_id == NULL)
+                    {
+                        return 1;
+                    }
                 }
                 
                 // 22 | [LF][Tab][LF] | - | End a subroutine and transfer control back to the caller |
@@ -780,6 +859,7 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                 else
                 {
                     printf(ERR_INVAL_INSTRUCT);
+                    printf("subroutines\n");
                     return 1;
                 }
                 
@@ -796,6 +876,7 @@ int ws_load(FILE *source_file, process *dispatch_proc)
                 else
                 {
                     printf(ERR_INVAL_INSTRUCT);
+                    printf("end\n");
                     return 1;
                 }
             }
@@ -803,6 +884,7 @@ int ws_load(FILE *source_file, process *dispatch_proc)
             else
             {
                 printf(ERR_INVAL_INSTRUCT);
+                printf("flow control\n");
                 return 1;
             }
         }
@@ -810,6 +892,7 @@ int ws_load(FILE *source_file, process *dispatch_proc)
         else
         {
             printf(ERR_INVAL_INSTRUCT);
+            printf("everything\n");
             return 1;
         }
     }
@@ -824,9 +907,9 @@ int ws_load(FILE *source_file, process *dispatch_proc)
         printf("Exiting. Label pointing past instructions.\n");
         return 1;
     }
-
+    
     dispatch_proc->curr_instruct = dispatch_proc->first_instruct;
-
+    
     return 0;
 }
 
@@ -1487,6 +1570,7 @@ int ws_shell()
     char    next_char;
     termios new_termios;
     termios old_termios;
+    int     token_count = 1;
     
     tcgetattr(STD_INPUT, &old_termios);
     cfmakeraw(&new_termios);
@@ -1494,7 +1578,7 @@ int ws_shell()
     // new_termios.c_oflag      = 0;
     // new_termios.c_cflag      = 0;
     // new_termios.c_lflag      = 0;
-    // new_termios.c_cc[VEOF]   = 4adsf;
+    // new_termios.c_cc[VEOF]   = 4;
     // new_termios.c_cc[VEOL]   = 0;
     // new_termios.c_cc[VERASE] = 0;
     // new_termios.c_cc[VINTR]  = 0;
@@ -1505,33 +1589,334 @@ int ws_shell()
     // new_termios.c_cc[VSTOP]  = 0;
     // new_termios.c_cc[VSUSP]  = 0;
     // new_termios.c_cc[VTIME]  = 0;
-    tcsetattr(STD_INPUT, 0, &new_termios);
-
+    
     // Begin processing if EOF is received.
     // Exit if EOF is received with no other input
-    printf("A Whitespace Shell\n");
+    printf("A Whitespace Shell %d\n", '\r');
     printf("Enter EOF to execute code the entered code.\n");
     printf("Enter EOF with no other input to exit the shell.\n");
     shell_proc = ws_init_proc();
-
+    
     pipe(pipeline);
     write_buffer = fdopen(pipeline[1], "w");
     read_buffer  = fdopen(pipeline[0], "r");
-
-    while (1)
+    
+    while (token_count != 0)
     {
+        printf("\n");
+        token_count = 0;
+        tcsetattr(STD_INPUT, 0, &new_termios);
         do
         {
             read(STD_INPUT, &next_char, sizeof(char));
-            fputc(next_char, write_buffer);
+            // 0   ctrl @
+            if (next_char == 0)
+            {
+                printf("\a");
+            }
+            // 1   ctrl a
+            else if (next_char == 1)
+            {
+                /* Move cursor to the start of the line */
+            }
+            // 2   ctrl b
+            else if (next_char == 2)
+            {
+                /* Move cursor one character back */
+            }
+            // 3   ctrl c
+            else if (next_char == 3)
+            {
+                /* quit */
+            }
+            // 4   ctrl d
+            else if (next_char == 4)
+            {
+                /* run the program if there is input or exit the program if there is no input */
+            }
+            // 5   ctrl e
+            else if (next_char == 5)
+            {
+                /* move the cursor to the end of the line */
+            }
+            // 6   ctrl f
+            else if (next_char == 6)
+            {
+                /* move the cursor one character forward*/
+            }
+            // 7   ctrl g
+            else if (next_char == 7)
+            {
+                printf("\a");
+                fflush(stdout);
+            }
+            // 8   ctrl h
+            else if (next_char == 8)
+            {
+                /* perform a backspace */
+            }
+            // 9   ctrl i, tab
+            else if (next_char == 9)
+            {
+                /* accept tab character into the feed */
+            }
+            // 10  ctrl j
+            else if (next_char == 10)
+            {
+                /* accept new line character into the feed */
+            }
+            // 11  ctrl k
+            // 12  ctrl l
+            // 13  ctrl m, enter
+            // 14  ctrl n
+            // 15  ctrl o
+            // 16  ctrl p
+            // 17  ctrl q
+            // 18  ctrl r
+            // 19  ctrl s
+            // 20  ctrl t
+            // 21  ctrl u
+            // 22  ctrl v
+            // 23  ctrl w
+            // 24  ctrl x
+            // 25  ctrl y
+            // 26  ctrl z
+            // 27  esc, ctrl 3, ctrl [
+            // 28  ctrl 4, ctrl \
+            // 29  ctrl 5, ctrl ]
+            // 30  ctrl 6
+            // 31  ctrl 7, ctrl _, ctrl /
+            // 32  space
+            // 33  !
+            // 34  "
+            // 35  #
+            // 36  $
+            // 37  %
+            // 38  &
+            // 39  '
+            // 40  (
+            // 41  )
+            // 42  *
+            // 43  +
+            // 44  ,
+            // 45  -
+            // 46  .
+            // 47  /
+            // 48  0
+            // 49  1
+            // 50  2
+            // 51  3
+            // 52  4
+            // 53  5
+            // 54  6
+            // 55  7
+            // 56  8
+            // 57  9
+            // 58  :
+            // 59  ;
+            // 60  <
+            // 61  =
+            // 62  >
+            // 63  ?
+            // 64  @
+            // 65
+            // 66
+            // 67
+            // 68
+            // 69
+            // 70
+            // 71
+            // 72
+            // 73
+            // 74
+            // 75
+            // 76
+            // 77
+            // 78
+            // 79
+            // 80
+            // 81
+            // 82
+            // 83
+            // 84
+            // 85
+            // 86
+            // 87
+            // 88
+            // 89
+            // 90
+            // 91  [
+            // 92  \
+            // 93  ]
+            // 94  ^
+            // 95  _
+            // 96  `
+            // 97  
+            // 98  
+            // 99  
+            // 100 
+            // 101
+            // 102
+            // 103
+            // 104
+            // 105
+            // 106
+            // 107
+            // 108
+            // 109
+            // 110
+            // 111
+            // 112
+            // 113
+            // 114
+            // 115
+            // 116
+            // 117
+            // 118
+            // 119
+            // 120
+            // 121
+            // 122
+            // 123 {
+            // 124 |
+            // 125 }
+            // 126 ~
+            // 127 ctrl 8, ctrl ?
+            // 128
+            // 129
+            // 130
+            // 131
+            // 132
+            // 133
+            // 134
+            // 135
+            // 136
+            // 137
+            // 138
+            // 139
+            // 140
+            // 141
+            // 142
+            // 143
+            // 144
+            // 145
+            // 146
+            // 147
+            // 148
+            // 149
+            // 150
+            // 151
+            // 152
+            // 153
+            // 154
+            // 155
+            // 156
+            // 157
+            // 158
+            // 159
+            // 160
+            // 161
+            // 162
+            // 163
+            // 164
+            // 165
+            // 166
+            // 167
+            // 168
+            // 169
+            // 170
+            // 171
+            // 172
+            // 173
+            // 174
+            // 175
+            // 176
+            // 177
+            // 178
+            // 179
+            // 180
+            // 181
+            // 182
+            // 183
+            // 184
+            // 185
+            // 186
+            // 187
+            // 188
+            // 189
+            // 190
+            // 191
+            // 192
+            // 193
+            // 194
+            // 195
+            // 196
+            // 197
+            // 198
+            // 199
+            // 200
+            // 201
+            // 202
+            // 203
+            // 204
+            // 205
+            // 206
+            // 207
+            // 208
+            // 209
+            // 210
+            // 211
+            // 212
+            // 213
+            // 214
+            // 215
+            // 216
+            // 217
+            // 218
+            // 219
+            // 220
+            // 221
+            // 222
+            // 223
+            // 224
+            // 225
+            // 226
+            // 227
+            // 228
+            // 229
+            // 230
+            // 231
+            // 232
+            // 233
+            // 234
+            // 235
+            // 236
+            // 237
+            // 238
+            // 239
+            // 240
+            // 241
+            // 242
+            // 243
+            // 244
+            // 245
+            // 246
+            // 247
+            // 248
+            // 249
+            // 250
+            // 251
+            // 252
+            // 253
+            // 254
+            // 255
             if (next_char == 27)
             {
+                printf("\033[shere 27\033[u");
                 read(STD_INPUT, &next_char, sizeof(char));
-                fputc(next_char, write_buffer);
                 if (next_char == 91)
                 {
                     read(STD_INPUT, &next_char, sizeof(char));
-                    fputc(next_char, write_buffer);
                     if (next_char == 65)
                     {
                         printf("\033[1A");
@@ -1552,32 +1937,41 @@ int ws_shell()
                         // D
                     }
                 }
+                fflush(stdout);
             }
             else if (next_char == 127)
             {
-                printf("\033[1A");
+                // printf("\033[1A");
+                printf("%c", 127);
+                token_count -= 1;
+            }
+            else if (next_char == 4)
+            {
+                fputc(EOF, write_buffer);
             }
             else
             {
-                if (next_char == ' ' || next_char == '\n' || next_char == '\t')
+                if (next_char == ' ' || next_char == '\t')
                 {
                     fputc(next_char, write_buffer);
                 }
+                if (next_char == '\r')
+                {
+                    fputc('\n', write_buffer);
+                }
+                token_count += 1;
                 printf( "here %d\r\n", next_char);
             }
         }
         while(next_char != 4);
-        // fputc(3, write_buffer);
-        close(write_buffer);
+        tcsetattr(STD_INPUT, 0, &old_termios);
+        fflush(write_buffer);
         if (ws_load(read_buffer, &shell_proc) == 0)
         {
             ws_run(shell_proc);
         }
-        write_buffer = fdopen(pipeline[1], "w");
     }
     ws_kill_proc(shell_proc);
-
-    tcsetattr(STD_INPUT, 0, &old_termios);
 
     return 0;
 }
