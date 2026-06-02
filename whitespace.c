@@ -36,7 +36,7 @@
 #define ERR_NOT_NUMBER           "Exiting. Not a number.\r\n"
 #define ERR_NO_INTEGER           "Exiting. No integer parameter.\r\n"
 #define HERE                     "here\r\n"
-#define STD_INPUT                1
+#define STD_OUTPUT               1
 
 typedef struct termios termios;
 
@@ -85,7 +85,6 @@ typedef struct process
 typedef struct input_line
 {
     strchar           *p_characters;
-    int               length;
     struct input_line *p_next_line;
 } input_line;
 
@@ -130,6 +129,9 @@ void ws_convert(char *file_name);
 /* Echos the whitespace source code with character coloring */
 int ws_echo(char* file_name);
 
+/* Print user options */
+void print_help();
+
 // TODO: Configure each of the options to handle their own processes
 int main(int argc, char *argv[])
 {
@@ -139,7 +141,7 @@ int main(int argc, char *argv[])
     /* Shell */
     if (argc == 1)
     {
-        ws_shell();
+        print_help();
     }
 
     /* Interpreter */
@@ -229,19 +231,19 @@ char find_next_token(FILE *source_file)
     do
     {
         next_char = fgetc(source_file);
-        if (next_char == ' ')
-        {
-            printf("[Space]    ");
-        }
-        else if (next_char == '\t')
-        {
-            printf("[Tab]      ");
-        }
-        else if (next_char == '\n')
-        {
-            printf("[Line Feed]");
-        }
-        printf("Token Found: %d\r\n", next_char);
+        // if (next_char == ' ')
+        // {
+        //     printf("[Space]    ");
+        // }
+        // else if (next_char == '\t')
+        // {
+        //     printf("[Tab]      ");
+        // }
+        // else if (next_char == '\n')
+        // {
+        //     printf("[Line Feed]");
+        // }
+        // printf("Token Found: %d\r\n", next_char);
     } while(next_char != ' ' && next_char != '\t' && next_char != '\n' && next_char != EOF);
     
     return next_char;
@@ -1559,422 +1561,75 @@ int ws_run(process running_process)
     return 0;
 }
 
-/* Runs the whitespace shell */
-/* In progress */
-int ws_shell()
+void print_char(char output, int *curr_col, int *curr_row, int *term_col, int *term_row)
 {
-    process shell_proc;
-    int     pipeline[2];
-    FILE    *write_buffer;
-    FILE    *read_buffer;
-    char    next_char;
-    termios new_termios;
-    termios old_termios;
-    int     token_count = 1;
+    int iterator;
     
-    tcgetattr(STD_INPUT, &old_termios);
-    cfmakeraw(&new_termios);
-    // new_termios.c_iflag      = 0;
-    // new_termios.c_oflag      = 0;
-    // new_termios.c_cflag      = 0;
-    // new_termios.c_lflag      = 0;
-    // new_termios.c_cc[VEOF]   = 4;
-    // new_termios.c_cc[VEOL]   = 0;
-    // new_termios.c_cc[VERASE] = 0;
-    // new_termios.c_cc[VINTR]  = 0;
-    // new_termios.c_cc[VKILL]  = 0;
-    // new_termios.c_cc[VMIN]   = 0;
-    // new_termios.c_cc[VQUIT]  = 0;
-    // new_termios.c_cc[VSTART] = 0;
-    // new_termios.c_cc[VSTOP]  = 0;
-    // new_termios.c_cc[VSUSP]  = 0;
-    // new_termios.c_cc[VTIME]  = 0;
-    
-    // Begin processing if EOF is received.
-    // Exit if EOF is received with no other input
-    printf("A Whitespace Shell %d\n", '\r');
-    printf("Enter EOF to execute code the entered code.\n");
-    printf("Enter EOF with no other input to exit the shell.\n");
-    shell_proc = ws_init_proc();
-    
-    pipe(pipeline);
-    write_buffer = fdopen(pipeline[1], "w");
-    read_buffer  = fdopen(pipeline[0], "r");
-    
-    while (token_count != 0)
+    if (output >= 33 && output <= 126)
     {
-        printf("\n");
-        token_count = 0;
-        tcsetattr(STD_INPUT, 0, &new_termios);
-        do
+        printf("%c", output);
+        *curr_col += 1;
+        if (*curr_col >= *term_col)
         {
-            read(STD_INPUT, &next_char, sizeof(char));
-            // 0   ctrl @
-            if (next_char == 0)
-            {
-                printf("\a");
-            }
-            // 1   ctrl a
-            else if (next_char == 1)
-            {
-                /* Move cursor to the start of the line */
-            }
-            // 2   ctrl b
-            else if (next_char == 2)
-            {
-                /* Move cursor one character back */
-            }
-            // 3   ctrl c
-            else if (next_char == 3)
-            {
-                /* quit */
-            }
-            // 4   ctrl d
-            else if (next_char == 4)
-            {
-                /* run the program if there is input or exit the program if there is no input */
-            }
-            // 5   ctrl e
-            else if (next_char == 5)
-            {
-                /* move the cursor to the end of the line */
-            }
-            // 6   ctrl f
-            else if (next_char == 6)
-            {
-                /* move the cursor one character forward*/
-            }
-            // 7   ctrl g
-            else if (next_char == 7)
-            {
-                printf("\a");
-                fflush(stdout);
-            }
-            // 8   ctrl h
-            else if (next_char == 8)
-            {
-                /* perform a backspace */
-            }
-            // 9   ctrl i, tab
-            else if (next_char == 9)
-            {
-                /* accept tab character into the feed */
-            }
-            // 10  ctrl j
-            else if (next_char == 10)
-            {
-                /* accept new line character into the feed */
-            }
-            // 11  ctrl k
-            // 12  ctrl l
-            // 13  ctrl m, enter
-            // 14  ctrl n
-            // 15  ctrl o
-            // 16  ctrl p
-            // 17  ctrl q
-            // 18  ctrl r
-            // 19  ctrl s
-            // 20  ctrl t
-            // 21  ctrl u
-            // 22  ctrl v
-            // 23  ctrl w
-            // 24  ctrl x
-            // 25  ctrl y
-            // 26  ctrl z
-            // 27  esc, ctrl 3, ctrl [
-            // 28  ctrl 4, ctrl \
-            // 29  ctrl 5, ctrl ]
-            // 30  ctrl 6
-            // 31  ctrl 7, ctrl _, ctrl /
-            // 32  space
-            // 33  !
-            // 34  "
-            // 35  #
-            // 36  $
-            // 37  %
-            // 38  &
-            // 39  '
-            // 40  (
-            // 41  )
-            // 42  *
-            // 43  +
-            // 44  ,
-            // 45  -
-            // 46  .
-            // 47  /
-            // 48  0
-            // 49  1
-            // 50  2
-            // 51  3
-            // 52  4
-            // 53  5
-            // 54  6
-            // 55  7
-            // 56  8
-            // 57  9
-            // 58  :
-            // 59  ;
-            // 60  <
-            // 61  =
-            // 62  >
-            // 63  ?
-            // 64  @
-            // 65
-            // 66
-            // 67
-            // 68
-            // 69
-            // 70
-            // 71
-            // 72
-            // 73
-            // 74
-            // 75
-            // 76
-            // 77
-            // 78
-            // 79
-            // 80
-            // 81
-            // 82
-            // 83
-            // 84
-            // 85
-            // 86
-            // 87
-            // 88
-            // 89
-            // 90
-            // 91  [
-            // 92  \
-            // 93  ]
-            // 94  ^
-            // 95  _
-            // 96  `
-            // 97  
-            // 98  
-            // 99  
-            // 100 
-            // 101
-            // 102
-            // 103
-            // 104
-            // 105
-            // 106
-            // 107
-            // 108
-            // 109
-            // 110
-            // 111
-            // 112
-            // 113
-            // 114
-            // 115
-            // 116
-            // 117
-            // 118
-            // 119
-            // 120
-            // 121
-            // 122
-            // 123 {
-            // 124 |
-            // 125 }
-            // 126 ~
-            // 127 ctrl 8, ctrl ?
-            // 128
-            // 129
-            // 130
-            // 131
-            // 132
-            // 133
-            // 134
-            // 135
-            // 136
-            // 137
-            // 138
-            // 139
-            // 140
-            // 141
-            // 142
-            // 143
-            // 144
-            // 145
-            // 146
-            // 147
-            // 148
-            // 149
-            // 150
-            // 151
-            // 152
-            // 153
-            // 154
-            // 155
-            // 156
-            // 157
-            // 158
-            // 159
-            // 160
-            // 161
-            // 162
-            // 163
-            // 164
-            // 165
-            // 166
-            // 167
-            // 168
-            // 169
-            // 170
-            // 171
-            // 172
-            // 173
-            // 174
-            // 175
-            // 176
-            // 177
-            // 178
-            // 179
-            // 180
-            // 181
-            // 182
-            // 183
-            // 184
-            // 185
-            // 186
-            // 187
-            // 188
-            // 189
-            // 190
-            // 191
-            // 192
-            // 193
-            // 194
-            // 195
-            // 196
-            // 197
-            // 198
-            // 199
-            // 200
-            // 201
-            // 202
-            // 203
-            // 204
-            // 205
-            // 206
-            // 207
-            // 208
-            // 209
-            // 210
-            // 211
-            // 212
-            // 213
-            // 214
-            // 215
-            // 216
-            // 217
-            // 218
-            // 219
-            // 220
-            // 221
-            // 222
-            // 223
-            // 224
-            // 225
-            // 226
-            // 227
-            // 228
-            // 229
-            // 230
-            // 231
-            // 232
-            // 233
-            // 234
-            // 235
-            // 236
-            // 237
-            // 238
-            // 239
-            // 240
-            // 241
-            // 242
-            // 243
-            // 244
-            // 245
-            // 246
-            // 247
-            // 248
-            // 249
-            // 250
-            // 251
-            // 252
-            // 253
-            // 254
-            // 255
-            if (next_char == 27)
-            {
-                printf("\033[shere 27\033[u");
-                read(STD_INPUT, &next_char, sizeof(char));
-                if (next_char == 91)
-                {
-                    read(STD_INPUT, &next_char, sizeof(char));
-                    if (next_char == 65)
-                    {
-                        printf("\033[1A");
-                    }
-                    else if (next_char == 66)
-                    {
-                        printf("\033[1B");
-                        // B
-                    }
-                    else if (next_char == 67)
-                    {
-                        printf("\033[1C");
-                        // C
-                    }
-                    else if (next_char == 68)
-                    {
-                        printf("\033[1D");
-                        // D
-                    }
-                }
-                fflush(stdout);
-            }
-            else if (next_char == 127)
-            {
-                // printf("\033[1A");
-                printf("%c", 127);
-                token_count -= 1;
-            }
-            else if (next_char == 4)
-            {
-                fputc(EOF, write_buffer);
-            }
-            else
-            {
-                if (next_char == ' ' || next_char == '\t')
-                {
-                    fputc(next_char, write_buffer);
-                }
-                if (next_char == '\r')
-                {
-                    fputc('\n', write_buffer);
-                }
-                token_count += 1;
-                printf( "here %d\r\n", next_char);
-            }
-        }
-        while(next_char != 4);
-        tcsetattr(STD_INPUT, 0, &old_termios);
-        fflush(write_buffer);
-        if (ws_load(read_buffer, &shell_proc) == 0)
-        {
-            ws_run(shell_proc);
+            *curr_col = 0;
+            *curr_row += 1;
         }
     }
-    ws_kill_proc(shell_proc);
+    else if (output == 32)
+    {
+        printf(GREEN_BACK " " NOCOLOR);
+    }
+    else if (output == 9)
+    {
+        8 - (*curr_col % 8);
+        if (*curr_col + 8 - (*curr_col % 8) >= *term_col)
+        {
+            printf("\r\n");
+            *curr_col = 0;
+            *curr_row += 1;
+        }
+        do
+        {
+            printf(BLUE_BACK " " NOCOLOR);
+            *curr_col += 1;
+        } while (*curr_col % 8 != 0);
+    }
+    else if (output == '\n')
+    {
+        printf(RED_BACK " " NOCOLOR);
+        *curr_col += 1;
+        if (*curr_col >= *term_col)
+        {
+            *curr_row += 1;
+        }
+        printf("\r\n");
+        *curr_col = 0;
+        *curr_row += 1;
+    }
 
-    return 0;
+    fflush(stdout);
+
+    return;
 }
+
+void print_help()
+{
+    printf("A Whitespace Interpreter\n");
+    printf("\n");
+    printf("Run a Program:\n");
+    printf("    whitespace run (file_name.ws)\n");
+    printf("\n");
+    printf("Echo Source Code:\n");
+    printf("    whitespace echo (file_name.ws)\n");
+    printf("\n");
+    printf("Convert Source Code:\n");
+    printf("    whitespace cws (file)name.ws)\n");
+    printf("\n");
+
+    return;
+}
+
+int calc_line_len();
 
 //    | Command                    | Parameters | Meaning                                                                                 |
 //    |----------------------------|------------|-----------------------------------------------------------------------------------------|
