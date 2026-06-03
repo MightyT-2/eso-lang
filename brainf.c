@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <termios.h>
-
+#include <string.h>
+#include <stdlib.h>
 typedef struct cell
 {
 	char value;
@@ -19,15 +20,39 @@ typedef struct termios termios;
 
 char get_next_token(FILE *source_file);
 
-void bf_parse(instruct *p_program, FILE *source_file);
+void bf_parse(instruct *p_process, FILE *source_file);
 
-void bf_run(instruct *p_program);
+void bf_run(instruct *p_process);
 
 cell *initialize_ribbon();
 
-int main()
+instruct *init_user_process();
+
+int main(int argc, char *argv[])
 {
+	instruct *p_user_process;
+	FILE *p_source_file;
+
+	if (argc == 3)
+	{
+		if (strcmp(argv[1], "run") == 0)
+		{
+			p_source_file = fopen(argv[2], "r");
+			p_user_process = init_user_process();
+		}
+	}
+
 	return 0;
+}
+
+instruct *init_user_process()
+{
+	instruct *p_new_process;
+
+	p_new_process = calloc(sizeof(instruct), 1);
+	p_new_process->p_next_instruct = calloc(sizeof(instruct), 1);
+
+	return p_new_process;
 }
 
 char get_next_token(FILE *source_file)
@@ -39,12 +64,12 @@ char get_next_token(FILE *source_file)
 	return next_char;
 }
 
-void bf_parse(instruct *p_program, FILE *source_file)
+void bf_parse(instruct *p_process, FILE *source_file)
 {
 	instruct **loop_stack = NULL;
 	int loop_stack_count = 0;
 	instruct *curr_instruct = NULL;
-	instruct *prev_instruct = p_program;
+	instruct *prev_instruct = p_process;
 	char next_char;
 
 	while ((next_char = get_next_token(source_file)) != EOF)
@@ -79,10 +104,10 @@ void bf_parse(instruct *p_program, FILE *source_file)
 	return;
 }
 
-void bf_run(instruct *p_program)
+void bf_run(instruct *p_process)
 {
 	cell *p_curr_cell = initialize_ribbon();
-	instruct *p_curr_instruct = p_program->p_next_instruct;
+	instruct *p_curr_instruct = p_process->p_next_instruct;
 
 	while (p_curr_instruct->instruct != 0)
 	{
