@@ -39,6 +39,8 @@ int main(int argc, char *argv[])
 		{
 			p_source_file = fopen(argv[2], "r");
 			p_user_process = init_user_process();
+			bf_parse(p_user_process, p_source_file);
+			bf_run(p_user_process);
 		}
 	}
 
@@ -89,7 +91,7 @@ void bf_parse(instruct *p_process, FILE *source_file)
 			{
 				exit(1);
 			}
-			curr_instruct->p_matching_instruct = loop_stack[loop_stack_count];
+			curr_instruct->p_matching_instruct = loop_stack[loop_stack_count - 1];
 			curr_instruct->p_matching_instruct->p_matching_instruct = curr_instruct;
 			loop_stack = realloc(loop_stack, (--loop_stack_count) * sizeof(instruct *));
 		}
@@ -133,7 +135,7 @@ void bf_run(instruct *p_process)
 		}
 		else if (p_curr_instruct->instruct == ',')
 		{
-			scanf("%1c");
+			scanf("%1c", &p_curr_cell->value);
 		}
 
 		if ((p_curr_instruct->instruct == '[' && p_curr_cell->value == 0) || (p_curr_instruct->instruct == ']' && p_curr_cell->value != 0))
