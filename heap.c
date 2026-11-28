@@ -1,5 +1,6 @@
-#include <stdlib.h>
-#include <stdio.h>
+#ifndef _HEAP
+#include "heap.h"
+#endif
 
 typedef struct heap_item
 {
@@ -11,10 +12,11 @@ typedef struct heap_item
 
 HEAP_ITEM *heap = 0;
 
-int fetch(int index, int64_t *item)
+ERROR_CODE fetch(int index, int64_t *item)
 {
     HEAP_ITEM *curr_entry = heap;
 
+    /* Find heap item */
     while (curr_entry != 0 && curr_entry->index != index)
     {
         if (index > curr_entry->index)
@@ -26,16 +28,18 @@ int fetch(int index, int64_t *item)
             curr_entry = curr_entry->child_2;
         }
     }
+
+    /* Error if no heap entry */
     if (curr_entry == 0)
     {
-        return 1;
+        return null_heap_entry;
     }
     *item = curr_entry->value;
 
-    return 0;
+    return no_error;
 }
 
-int store(int index, int64_t item)
+void store(int index, int64_t item)
 {
     HEAP_ITEM *curr_entry = heap;
 
@@ -68,32 +72,31 @@ int store(int index, int64_t item)
     }
     curr_entry->value = item;
 
-    return 0;
+    return;
 }
 
 void print_heap(HEAP_ITEM *item)
 {
-    if (item->child_2 != 0)
+    if (item != 0)
     {
-        print_heap(item->child_2);
+        if (item->child_2 != 0)
+        {
+            print_heap(item->child_2);
+        }
+        printf("%4d %d\n", item->index, item->value);
+        if (item->child_1 != 0)
+        {
+            print_heap(item->child_1);
+        }
     }
-    printf("%4d %d\n", item->index, item->value);
-    if (item->child_1 != 0)
-    {
-        print_heap(item->child_1);
-    }
+
     return;
 }
 
 void heap_dump()
 {
-    HEAP_ITEM *curr_heap_item = heap;
-
     printf("Heap Dump:\n");
-    if (curr_heap_item != 0)
-    {
-        print_heap(curr_heap_item);
-    }
+    print_heap(heap);
 
     return;
 }

@@ -1,7 +1,12 @@
-#include "whitespace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WHITESPACE
+#include "whitespace.h"
+#endif
+#ifndef _ERROR
+#include "error.h"
+#endif
 
 // TODO: Configure each of the options to handle their own processes
 int main(int argc, char *argv[])
@@ -22,6 +27,7 @@ int main(int argc, char *argv[])
         {
             if (ws_run() == 1)
             {
+                print_errors();
                 exit(1);
             }
         }

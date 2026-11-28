@@ -10,10 +10,18 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdlib.h>
+#ifndef _STACK
 #include "stack.h"
+#endif
+#ifndef _HEAP
 #include "heap.h"
+#endif
+#ifndef _WHITESPACE
 #include "whitespace.h"
+#endif
+#ifndef _INSTRUCTION
 #include "instruction.h"
+#endif
 
 #define NOCOLOR                  "\x1b[0m"
 #define RED_FORE                 "\x1b[31m"
@@ -39,42 +47,13 @@
 #define HERE                     "here\r\n"
 #define STD_OUTPUT               1
 
+typedef struct strchar
+{
+    char           character;
+    struct strchar *next_character;
+} strchar;
+
 int exception = 0;
-
-/* Debug function used to show the contents of the heap */
-void debug_heap_dump(heap_entry *cur_heap_entry)
-{
-    printf("Heap Dump:\n");
-    if (cur_heap_entry == NULL)
-    {
-        return;
-    }
-    while (cur_heap_entry->prev_entry != NULL)
-    {
-        cur_heap_entry = cur_heap_entry->prev_entry;
-    }
-    while (cur_heap_entry->next_entry != NULL)
-    {
-        printf("%05ld: %ld\n", cur_heap_entry->entry_id, cur_heap_entry->heap_value);
-        cur_heap_entry = cur_heap_entry->next_entry;
-    }
-    printf("%05ld: %ld\n", cur_heap_entry->entry_id, cur_heap_entry->heap_value);
-    return;
-}
-
-/* Debug function used to show the contents of the stack */
-void debug_stack_dump(int64_t *start_stack, int64_t *end_stack)
-{
-    int64_t *cur_stack = start_stack;
-
-    printf("Stack Dump:\n");
-    while (cur_stack != end_stack)
-    {
-        printf("%05ld: %ld\n", cur_stack - start_stack, *cur_stack);
-        cur_stack++;
-    }
-    return;
-}
 
 /* Debug function used to step through each instruction */
 void debug_step()
@@ -309,7 +288,7 @@ int ws_load(FILE *source_file)
             // 1  | [Space][Space] | Number | Push a number to the stack |
             if ((next_char = find_next_token(source_file)) == ' ')
             {
-                add_instruction(instruct_push, get_int(source_file), NULL);
+                add_instruction(instruct_push, get_int(source_file), NULL, 0, 0);
             }
             
             else if (next_char == '\t')
@@ -317,13 +296,13 @@ int ws_load(FILE *source_file)
                 // 2  | [Space][Tab][Space] | Number | Copy the nth item on the stack (given by the argument) onto the top of the stack (v0.3) |
                 if ((next_char = find_next_token(source_file)) == ' ')
                 {
-                    add_instruction(instruct_copy, get_int(source_file), NULL);
+                    add_instruction(instruct_copy, get_int(source_file), NULL, 0, 0);
                 }
                 
                 // 3  | [Space][Tab][LF] | Number | Slide n items off the stack, keeping the top item (v0.3) |
                 else if (next_char == '\n')
                 {
-                    add_instruction(instruct_slide, get_int(source_file), NULL);
+                    add_instruction(instruct_slide, get_int(source_file), NULL, 0, 0);
                 }
                 
                 else
@@ -339,19 +318,19 @@ int ws_load(FILE *source_file)
                 // 4  | [Space][LF][Space] | - | Duplicate the top item on the stack |
                 if ((next_char = find_next_token(source_file)) == ' ')
                 {
-                    add_instruction(instruct_dup, 0, NULL);
+                    add_instruction(instruct_dup, 0, NULL, 0, 0);
                 }
                 
                 // 5  | [Space][LF][Tab] | - | Swap the top two items on the stack |
                 else if (next_char == '\t')
                 {
-                    add_instruction(instruct_swap, 0, NULL);
+                    add_instruction(instruct_swap, 0, NULL, 0, 0);
                 }
                 
                 // 6  | [Space][LF][LF] | - | Discard the top item on the stack |
                 else if (next_char == '\n')
                 {
-                    add_instruction(instruct_discard, 0, NULL);
+                    add_instruction(instruct_discard, 0, NULL, 0, 0);
                 }
                 
                 else
@@ -382,19 +361,19 @@ int ws_load(FILE *source_file)
                     // 7  | [Tab][Space][Space][Space] | - | Addition |
                     if ((next_char = find_next_token(source_file)) == ' ')
                     {
-                        add_instruction(instruct_add, 0, NULL);
+                        add_instruction(instruct_add, 0, NULL, 0, 0);
                     }
                     
                     // 8  | [Tab][Space][Space][Tab] | - | Subtraction |
                     else if (next_char == '\t')
                     {
-                        add_instruction(instruct_sub, 0, NULL);
+                        add_instruction(instruct_sub, 0, NULL, 0, 0);
                     }
                     
                     // 9  | [Tab][Space][Space][LF] | - | Multiplication |
                     else if (next_char == '\n')
                     {
-                        add_instruction(instruct_multi, 0, NULL);
+                        add_instruction(instruct_multi, 0, NULL, 0, 0);
                     }
                     
                     else
@@ -410,13 +389,13 @@ int ws_load(FILE *source_file)
                     // 10 | [Tab][Space][Tab][Space] | - | Integer Division |
                     if ((next_char = find_next_token(source_file)) == ' ')
                     {
-                        add_instruction(instruct_div, 0, NULL);
+                        add_instruction(instruct_div, 0, NULL, 0, 0);
                     }
                     
                     // 11 | [Tab][Space][Tab][Tab] | - | Modulo |
                     else if (next_char == '\t')
                     {
-                        add_instruction(instruct_mod, 0, NULL);
+                        add_instruction(instruct_mod, 0, NULL, 0, 0);
                     }
                     
                     else
@@ -441,13 +420,13 @@ int ws_load(FILE *source_file)
                 // 12 | [Tab][Tab][Space] | - | Store |
                 if ((next_char = find_next_token(source_file)) == ' ')
                 {
-                    add_instruction(instruct_store, 0, NULL);
+                    add_instruction(instruct_store, 0, NULL, 0, 0);
                 }
                 
                 // 13 | [Tab][Tab][Tab] | - | Retrieve |
                 else if (next_char == '\t')
                 {
-                    add_instruction(instruct_fetch, 0, NULL);
+                    add_instruction(instruct_fetch, 0, NULL, 0, 0);
                 }
                 
                 else
@@ -467,13 +446,13 @@ int ws_load(FILE *source_file)
                     // 14 | [Tab][LF][Space][Space] | - | Output the character at the top of the stack |
                     if ((next_char = find_next_token(source_file)) == ' ')
                     {
-                        add_instruction(instruct_output_c, 0, NULL);
+                        add_instruction(instruct_output_c, 0, NULL, 0, 0);
                     }
                     
                     // 15 | [Tab][LF][Space][Tab] | - | Output the number at the top of the stack |
                     else if (next_char == '\t')
                     {
-                        add_instruction(instruct_output_i, 0, NULL);
+                        add_instruction(instruct_output_i, 0, NULL, 0, 0);
                     }
                     
                     else
@@ -489,13 +468,13 @@ int ws_load(FILE *source_file)
                     // 16 | [Tab][LF][Tab][Space] | - | Read a character and place it in the location given by the top of the stack |
                     if ((next_char = find_next_token(source_file)) == ' ')
                     {
-                        add_instruction(instruct_input_c, 0, NULL);
+                        add_instruction(instruct_input_c, 0, NULL, 0, 0);
                     }
                     
                     // 17 | [Tab][LF][Tab][Tab] | - | Read a number and place it in the location given by the top of the stack |
                     else if (next_char == '\t')
                     {
-                        add_instruction(instruct_input_i, 0, NULL);
+                        add_instruction(instruct_input_i, 0, NULL, 0, 0);
                     }
                     
                     else
@@ -536,13 +515,13 @@ int ws_load(FILE *source_file)
                 // 18 | [LF][Space][Tab] | Label | Call a subroutine |
                 else if (next_char == '\t')
                 {
-                    add_instruction(instruct_call, 0, get_label(source_file));
+                    add_instruction(instruct_call, 0, get_label(source_file), 0, 0);
                 }
                 
                 // 19 | [LF][Space][LF] | Label | Jump unconditionally to a label |
                 else if (next_char == '\n')
                 {
-                    add_instruction(instruct_jump, 0, get_label(source_file));
+                    add_instruction(instruct_jump, 0, get_label(source_file), 0, 0);
                 }
                 
                 else
@@ -559,19 +538,19 @@ int ws_load(FILE *source_file)
                 // 20 | [LF][Tab][Space] | Label | Jump to a label if the top of the stack is zero |
                 if ((next_char = find_next_token(source_file)) == ' ')
                 {
-                    add_instruction(instruct_jump_zero, 0, get_label(source_file));
+                    add_instruction(instruct_jump_zero, 0, get_label(source_file), 0, 0);
                 }
                 
                 // 21 | [LF][Tab][Tab] | Label | Jump to a label if the top of the stack is negative |
                 else if (next_char == '\t')
                 {
-                    add_instruction(instruct_jump_neg, 0, get_label(source_file));
+                    add_instruction(instruct_jump_neg, 0, get_label(source_file), 0, 0);
                 }
                 
                 // 22 | [LF][Tab][LF] | - | End a subroutine and transfer control back to the caller |
                 else if (next_char == '\n')
                 {
-                    add_instruction(instruct_return, 0, NULL);
+                    add_instruction(instruct_return, 0, NULL, 0, 0);
                 }
                 
                 else
@@ -588,7 +567,7 @@ int ws_load(FILE *source_file)
                 // 23 | [LF][LF][LF] | - | End the program |
                 if ((next_char = find_next_token(source_file)) == '\n')
                 {
-                    add_instruction(instruct_end, 0, NULL);
+                    add_instruction(instruct_end, 0, NULL, 0, 0);
                 }
                 
                 else
@@ -627,142 +606,145 @@ int ws_run()
             item_1,
             item_2,
             item_3;
-    int     is_error;
-    // int     last_instruction,
-    //         debug_int = 0;
+    int     is_error,
+            instruction,
+            line,
+            column;
+    int     debug_int = 0;
     
-    start_program();
+    log_error(start_program(), 0, 0);
 
     /* Loop until an end process instruction is reached */
-    while (is_error != instruct_end)
+    while (count_error() == 0)
     {
-        switch (/*last_instruction = */get_instruct(&param))
+        switch (get_instruct(&instruction, &param, &line, &column), instruction)
         {
             
             /* Push a number to the stack */
             case instruct_push:
-                push(param);
-                next_instruct(0);
+                log_error(push(param), line, column);
+                log_error(next_instruct(0), line, column);
                 break;
                 
                 /* Copy the nth item on the stack */
             case instruct_copy:
-                peek(param, &item_1);
-                push(item_1);
-                next_instruct(0);
+                log_error(peek(param, &item_1), line, column);
+                log_error(push(item_1), line, column);
+                log_error(next_instruct(0), line, column);
                 break;
 
             /* Slide n items of the stack while keeping the top item */
             case instruct_slide:
                 for (item_1 = param; item_1 > 0; item_1--)
                 {
-                    pop(NULL);
+                    log_error(pop(NULL), line, column);
                 }
-                next_instruct(0);
+                log_error(next_instruct(0), line, column);
                 break;
 
             /* Duplicate the top stack item */
             case instruct_dup:
-                peek(0, &item_1);
-                push(item_1);
-                next_instruct(0);
+                log_error(peek(0, &item_1), line, column);
+                log_error(push(item_1), line, column);
+                log_error(next_instruct(0), line, column);
                 break;
 
             /* Swap the top two items on the stack */
             case instruct_swap:
-                pop(&item_1);
-                pop(&item_2);
-                push(item_1);
-                push(item_2);
-                next_instruct(0);
+                log_error(pop(&item_1), line, column);
+                log_error(pop(&item_2), line, column);
+                log_error(push(item_1), line, column);
+                log_error(push(item_2), line, column);
+                log_error(next_instruct(0), line, column);
                 break;
 
             /* Discard the top item off the stack */
             case instruct_discard:
-                pop(NULL);
-                next_instruct(0);
+                log_error(pop(NULL), line, column);
+                log_error(next_instruct(0), line, column);
                 break;
 
             /* Perform addition with the top two items on the stack */
             case instruct_add:
-                pop(&item_1);
-                pop(&item_2);
-                push(item_2 + item_1);
-                next_instruct(0);
+                log_error(pop(&item_1), line, column);
+                log_error(pop(&item_2), line, column);
+                log_error(push(item_2 + item_1), line, column);
+                log_error(next_instruct(0), line, column);
                 break;
 
             /* Perform subtraction with the top two items on the stack */
             case instruct_sub:
-                pop(&item_1);
-                pop(&item_2);
-                push(item_2 - item_1);
-                next_instruct(0);
+                log_error(pop(&item_1), line, column);
+                log_error(pop(&item_2), line, column);
+                log_error(push(item_2 - item_1), line, column);
+                log_error(next_instruct(0), line, column);
                 break;
 
             /* Perform multiplication with the top two items on the stack */
             case instruct_multi:
-                pop(&item_1);
-                pop(&item_2);
-                push(item_2 * item_1);
-                next_instruct(0);
+                log_error(pop(&item_1), line, column);
+                log_error(pop(&item_2), line, column);
+                log_error(push(item_2 * item_1), line, column);
+                log_error(next_instruct(0), line, column);
                 break;
 
             /* Perform integer division with the top two items on the stack */
             case instruct_div:
-                pop(&item_1);
-                pop(&item_2);
-                push(item_2 * item_1);
-                next_instruct(0);
+                log_error(pop(&item_1), line, column);
+                log_error(pop(&item_2), line, column);
+                log_error(push(item_2 * item_1), line, column);
+                log_error(next_instruct(0), line, column);
                 break;
 
             /* Perform modulo with the top two items on the stack */
             case instruct_mod:
-                pop(&item_1);
-                pop(&item_2);
-                push(item_2 % item_1);
-                next_instruct(0);
+                log_error(pop(&item_1), line, column);
+                log_error(pop(&item_2), line, column);
+                log_error(push(item_2 % item_1), line, column);
+                log_error(next_instruct(0), line, column);
                 break;
 
             /* Store the top item on the stack in a heap entry */
             case instruct_store:
-                pop(&item_1);
-                pop(&item_2);
+                log_error(pop(&item_1), line, column);
+                log_error(pop(&item_2), line, column);
                 store(item_2, item_1);
-                next_instruct(0);
+                log_error(next_instruct(0), line, column);
                 break;
 
             /* Retrieve an item from a heap entry */
             case instruct_fetch:
-                pop(&item_1);
-                fetch(item_1, &item_2);
-                push(item_2);
-                next_instruct(0);
+                log_error(pop(&item_1), line, column);
+                log_error(fetch(item_1, &item_2), line, column);
+                log_error(push(item_2), line, column);
+                log_error(next_instruct(0), line, column);
                 break;
             
             /* Output the character at the top of the stack */
             case instruct_output_c:
-                pop(&item_1);
+                log_error(pop(&item_1), line, column);
                 printf("%lc", (wchar_t) item_1);
-                next_instruct(0);
+                log_error(next_instruct(0), line, column);
                 break;
             
             /* Output the integer at the top of the stack */
             case instruct_output_i:
-                pop(&item_1);
+                log_error(pop(&item_1), line, column);
                 printf("%ld", item_1);
-                next_instruct(0);
+                log_error(next_instruct(0), line, column);
                 break;
             
             /* Read a character and place it in a heap entry */
             case instruct_input_c:
                 scanf("%1lc", (wchar_t *)&item_1);
-                pop(&item_2);
+                log_error(pop(&item_2), line, column);
                 store(item_2, item_1);
-                next_instruct(0);
+                log_error(next_instruct(0), line, column);
                 break;
             
             /* Read an integer and place it in a heap entry */
             case instruct_input_i:
+                item_3 = 0;
                 scanf("%lc", (int *)&item_1);
                 if (item_1 == '-')
                 {
@@ -788,36 +770,36 @@ int ws_run()
                 {
                     item_3 = -item_3;
                 }
-                pop(&item_1);
+                log_error(pop(&item_1), line, column);
                 store(item_1, item_3);
-                next_instruct(0);
+                log_error(next_instruct(0), line, column);
                 break;
         
             /* Call a subroutine */
             case instruct_call:
-                enter_subroutine();
+                log_error(enter_subroutine(), line, column);
                 break;
         
             /* Jump to a label unconditionally */
             case instruct_jump:
-                next_instruct(1);
+                log_error(next_instruct(1), line, column);
                 break;
             
             /* Jump to a label if the top of the stack is zero */
             case instruct_jump_zero:
-                pop(&item_1);
-                next_instruct(item_1 == 0);
+                log_error(pop(&item_1), line, column);
+                log_error(next_instruct(item_1 == 0), line, column);
                 break;
             
             /* Jump to a label if the top of the stack is negative */
             case instruct_jump_neg:
-                pop(&item_1);
-                next_instruct(item_1 < 0);
+                log_error(pop(&item_1), line, column);
+                log_error(next_instruct(item_1 < 0), line, column);
                 break;
             
             /* Return from a subroutine */
             case instruct_return:
-                return_subroutine();
+                log_error(return_subroutine(), line, column);
                 break;
             
             case instruct_end:
@@ -830,7 +812,7 @@ int ws_run()
 
         /* Debug Messages */
         // printf("%d\n", debug_int++);
-        // printf("Current instruction: %2d, Int param: %ld\n", last_instruction, param);
+        // printf("Current instruction: %2d, Int param: %ld\n", instruction, param);
         // stack_dump();
         // heap_dump();
         // debug_step();

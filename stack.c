@@ -1,6 +1,11 @@
 #include <stdint.h>
 #include <stdio.h>
+#ifndef _STACK
 #include "stack.h"
+#endif
+#ifndef _ERROR
+#include "error.h"
+#endif
 
 #define STACK_SIZE 1024
 
@@ -9,24 +14,23 @@ int stack_top = 0;
 int debug_pointer;
 
 /* TODO: error handling */
-int push(int item)
+ERROR_CODE push(int item)
 {
     if (stack_top >= STACK_SIZE)
     {
-        return 1;
+        return stack_overflow;
     }
     stack[stack_top] = item;
     stack_top++;
     
-    return 0;
+    return no_error;
 }
 
-/* TODO: error handling */
-int pop(int64_t *item)
+ERROR_CODE pop(int64_t *item)
 {
     if (stack_top <= 0)
     {
-        return 1;
+        return stack_underflow;
     }
     stack_top--;
     if (item != 0)
@@ -37,16 +41,15 @@ int pop(int64_t *item)
     return 0;
 }
 
-/* TODO: error handling */
-int peek(int index, int64_t *item)
+ERROR_CODE peek(int index, int64_t *item)
 {
     if (index > stack_top)
     {
-        return 1;
+        return stack_underflow;
     }
     *item = stack[stack_top - (index + 1)];
 
-    return 0;
+    return no_error;
 }
 
 int is_empty()

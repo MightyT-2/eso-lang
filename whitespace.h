@@ -1,7 +1,10 @@
-
-#include <termios.h>
 #include <stdio.h>
 #include <stdint.h>
+#ifndef _ERROR
+#include "error.h"
+#endif
+
+#define _WHITESPACE
 
 typedef enum instruction_codes
 {
@@ -30,31 +33,6 @@ typedef enum instruction_codes
     instruct_end
 } INSTRUCTION_CODES;
 
-typedef struct termios termios;
-
-typedef struct strchar
-{
-    char           character;
-    struct strchar *next_character;
-} strchar;
-
-typedef struct heap_entry
-{
-    int64_t           heap_value;
-    uint64_t          entry_id;
-    struct heap_entry *next_entry,
-                      *prev_entry;
-} heap_entry;
-
-typedef struct input_line
-{
-    strchar           *p_characters;
-    struct input_line *p_next_line;
-} input_line;
-
-/* Runs the whitespace shell */
-int ws_shell();
-
 /* Searches a file pointer for the next whitespace character */
 char find_next_token(FILE *source_file);
 
@@ -63,12 +41,6 @@ char *get_label(FILE *source_file);
 
 /* Converts whitespace bits to a 64 bit integer */
 int64_t get_int(FILE *source_file);
-
-/* Debug function used to show the contents of the stack */
-void debug_stack_dump(int64_t *start_stack, int64_t *end_stack);
-
-/* Debug function used to show the contents of the heap */
-void debug_heap_dump(heap_entry *cur_heap_entry);
 
 /* Debug function used to step through each instruction */
 void debug_step();
